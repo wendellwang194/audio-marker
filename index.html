@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>音频标记切分工具</title>
+<title>音频切片工坊</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -767,6 +767,441 @@
     color: #dbeafe;
     box-shadow: var(--shadow-sm);
   }
+
+  /* ══ Photoshop-like Dark Neutral Skin ══ */
+  :root {
+    --bg: #131313;
+    --bg-soft: #181818;
+    --panel: rgba(32, 32, 32, 0.88);
+    --panel-solid: #242424;
+    --stroke: #3f3f3f;
+    --stroke-strong: #555555;
+    --text: #e9e9ea;
+    --text-muted: #b3b3b8;
+    --text-dim: #919196;
+    --primary: #2f91ff;
+    --primary-hover: #4aa1ff;
+    --primary-soft: rgba(47, 145, 255, 0.3);
+    --success: #2f91ff;
+    --danger: #2f91ff;
+    --warning: #2f91ff;
+    --shadow-md: 0 10px 26px rgba(0, 0, 0, 0.45);
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.35);
+  }
+
+  body {
+    background: #131313;
+    color: var(--text);
+  }
+
+  body::before {
+    background-image: linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+    opacity: 0.35;
+  }
+
+  header,
+  #action-bar,
+  #progress-section,
+  #zoom-section,
+  #controls,
+  #bottom-area,
+  #warning-banner,
+  #waveform-wrap {
+    background: var(--panel);
+    border-color: var(--stroke);
+    box-shadow: var(--shadow-sm);
+  }
+
+  #waveform-wrap {
+    background: linear-gradient(180deg, rgba(30,30,30,0.94), rgba(20,20,20,0.98));
+  }
+
+  .brand-icon {
+    background: linear-gradient(145deg, rgba(120,120,120,0.26), rgba(80,80,80,0.18));
+    color: #d5d5d8;
+    border-color: #666;
+  }
+
+  .btn,
+  #file-label,
+  #import-excel-label {
+    background: rgba(56,56,56,0.9);
+    border-color: #5c5c5c;
+    color: #ececf0;
+  }
+  #file-label, #import-excel-label { color: #dddddf; }
+  #file-label:hover, #import-excel-label:hover {
+    background: rgba(68,68,68,0.95);
+    border-color: #767676;
+  }
+
+  .btn:hover:not(:disabled) {
+    background: rgba(70,70,70,0.95);
+    border-color: #7b7b7b;
+  }
+
+  /* Only key actions keep color accents */
+  .btn-accent,
+  .btn-export {
+    background: rgba(47,145,255,0.55);
+    border-color: rgba(127,186,255,0.65);
+    color: #eef6ff;
+  }
+  .btn-accent:hover:not(:disabled),
+  .btn-export:hover:not(:disabled) {
+    background: rgba(74,161,255,0.62);
+    border-color: rgba(162,208,255,0.75);
+  }
+
+  .btn-danger {
+    background: rgba(56,56,56,0.9);
+    border-color: #5c5c5c;
+    color: #ececf0;
+  }
+  .btn-danger:hover:not(:disabled) {
+    background: rgba(70,70,70,0.95);
+    border-color: #7b7b7b;
+  }
+
+  .ab-play,
+  #play-btn {
+    background: rgba(47,145,255,0.72);
+    border-color: rgba(154,202,255,0.7);
+    box-shadow: 0 4px 14px rgba(31,111,199,0.33);
+  }
+  .ab-play:hover:not(:disabled),
+  #play-btn:hover:not(:disabled) { background: rgba(74,161,255,0.8); }
+  #play-btn svg, .ab-play svg { fill: #fbfdff; }
+
+  .ab-btn-start {
+    background: rgba(47,145,255,0.55);
+    border-color: rgba(127,186,255,0.65);
+    color: #eef6ff;
+  }
+  .ab-btn-end {
+    background: rgba(56,56,56,0.9);
+    border-color: #5c5c5c;
+    color: #ececf0;
+  }
+  .ab-btn .kbd {
+    background: rgba(255,255,255,0.08);
+    border-color: rgba(255,255,255,0.18);
+    color: #d9d9df;
+  }
+
+  .ab-extra span,
+  .ctrl-group,
+  #zoom-section label { color: var(--text-dim) !important; }
+  #file-name, .prog-time.right { color: var(--text-dim); }
+  #zoom-display, #rate-display, #time-display, .ab-time, .prog-time { color: #d8d8dd; }
+
+  #progress-bg { background: #313131; }
+  #progress-fill { background: linear-gradient(90deg, #2d8cff 0%, #43a3ff 100%); }
+  #progress-thumb {
+    background: #f4f8ff;
+    border-color: #2d8cff;
+    box-shadow: 0 0 0 5px rgba(45,140,255,0.2), 0 0 12px rgba(45,140,255,0.28);
+  }
+
+  #timecode-input,
+  #timecode-go,
+  .marker-time-input,
+  .marker-name-input,
+  .seg-time-input,
+  .seg-card-name {
+    background: rgba(30,30,30,0.95);
+    border-color: #5e5e5e;
+    color: #e7e7ea;
+  }
+  #timecode-go { color: #d0d0d6; }
+
+  #marker-section h2,
+  #segment-section h2 {
+    color: #b0b0b5;
+    border-bottom-color: rgba(255,255,255,0.16);
+  }
+  #marker-section h2 .icon-inline,
+  #segment-section h2 .icon-inline { color: #b8b8bd; }
+
+  #marker-section,
+  #segment-section,
+  #bottom-area {
+    background: rgba(38,38,38,0.78);
+    border-color: #4a4a4a;
+  }
+
+  .marker-item.type-start { background: rgba(46,78,66,0.34); border-color: rgba(70,145,114,0.42); }
+  .marker-item.type-end   { background: rgba(89,50,50,0.34); border-color: rgba(166,86,86,0.4); }
+  .marker-time, .seg-card-range { color: #e2e2e7; }
+  .marker-jump, .seg-update-btn, .marker-update-btn { color: #c5d2e4; }
+
+  .seg-card {
+    background: rgba(45,45,45,0.86);
+    border-color: #5b5b5b;
+  }
+  .seg-card:hover { border-color: #7c7c7c; }
+  .seg-card-name { color: #efeff2; }
+  .seg-card-idx { color: #dfdfe4; background: rgba(255,255,255,0.11); }
+  .seg-card-dur { color: #b9d4c8; }
+
+  #warning-banner {
+    background: rgba(96,74,40,0.45);
+    border-color: rgba(215,162,88,0.64);
+    color: #f1ddb2;
+  }
+
+  #playhead {
+    background: #2f91ff;
+    box-shadow: 0 0 8px rgba(47,145,255,0.8);
+  }
+
+  .tooltip,
+  #progress-hover-tip {
+    background: rgba(24,24,24,0.96);
+    border-color: #5e5e5e;
+    color: #efeff2;
+  }
+
+  /* ══ Compact Layout Fixes ══ */
+  body {
+    height: 100dvh;
+    min-height: 100dvh;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  header {
+    padding: 8px 14px;
+    gap: 8px;
+  }
+  header h1 {
+    font-size: 15px;
+    gap: 8px;
+  }
+  .brand-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 7px;
+  }
+  .brand-icon svg { width: 14px; height: 14px; }
+
+  .btn,
+  #file-label,
+  #import-excel-label {
+    font-size: 12px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    line-height: 1.2;
+  }
+  .icon-inline {
+    width: 14px;
+    height: 14px;
+  }
+  #file-name {
+    max-width: 120px;
+    font-size: 12px;
+  }
+
+  #waveform-wrap {
+    margin: 8px 16px 0;
+  }
+  #waveform-canvas {
+    height: 136px;
+  }
+  #timeline-canvas {
+    width: calc(100% - 32px);
+    margin: 0 16px;
+    height: 24px;
+  }
+
+  #action-bar,
+  #progress-section,
+  #zoom-section,
+  #controls {
+    margin-left: 16px;
+    margin-right: 16px;
+    padding: 8px 10px;
+    gap: 8px;
+    border-radius: 10px;
+  }
+  #action-bar { margin-top: 8px; }
+  #progress-section { margin-top: 6px; }
+  #zoom-section { margin-top: 6px; }
+  #controls { margin-top: 8px; padding-top: 7px; padding-bottom: 7px; }
+
+  .ab-play,
+  #play-btn {
+    width: 34px;
+    height: 34px;
+  }
+  .ab-play svg,
+  #play-btn svg {
+    width: 14px;
+    height: 14px;
+  }
+  .ab-btn {
+    padding: 6px 10px;
+    font-size: 12px;
+    border-radius: 8px;
+  }
+  .ab-btn .kbd {
+    line-height: 14px;
+    font-size: 9px;
+    padding: 0 3px;
+  }
+  .ab-time,
+  #time-display {
+    min-width: 94px;
+    font-size: 12px;
+  }
+
+  #progress-track {
+    height: 22px;
+  }
+  #progress-bg { height: 4px; }
+  #progress-track:hover #progress-bg { height: 6px; }
+  #progress-thumb {
+    width: 12px;
+    height: 12px;
+  }
+  #progress-track:hover #progress-thumb,
+  #progress-track.dragging #progress-thumb {
+    width: 15px;
+    height: 15px;
+  }
+  #timecode-input {
+    width: 74px;
+    font-size: 11px;
+  }
+  #timecode-go {
+    font-size: 11px;
+    padding: 2px 6px;
+  }
+  .prog-time {
+    min-width: 54px;
+    font-size: 11px;
+  }
+
+  #zoom-section label,
+  #zoom-display,
+  #rate-display,
+  .ctrl-group,
+  .ab-extra span {
+    font-size: 11px !important;
+  }
+  #zoom-slider {
+    width: 92px;
+  }
+  #scroll-track {
+    height: 6px;
+  }
+  .ctrl-group input[type=range] {
+    width: 62px;
+  }
+
+  #warning-banner {
+    margin: 6px 16px 0;
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+
+  #bottom-area {
+    width: auto !important;
+    max-width: calc(100% - 32px);
+    margin: 4px 16px 8px;
+    border-radius: 12px;
+    min-height: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    overflow: hidden;
+  }
+  #marker-section {
+    width: clamp(220px, 28%, 320px);
+    flex: 0 0 clamp(220px, 28%, 320px);
+    min-width: 220px;
+    max-width: 34%;
+    padding: 10px 10px 10px 12px;
+  }
+  #segment-section {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 10px 12px 10px 10px;
+  }
+  #marker-section h2,
+  #segment-section h2 {
+    font-size: 11px;
+    margin-bottom: 6px;
+    padding-bottom: 5px;
+  }
+  #marker-list,
+  #segment-list {
+    gap: 4px;
+  }
+  .marker-item {
+    padding: 6px 8px;
+    gap: 6px;
+  }
+  .marker-time {
+    min-width: 56px;
+    font-size: 12px;
+  }
+  .marker-name-input,
+  .marker-time-input {
+    font-size: 11px;
+  }
+  .seg-card {
+    padding: 7px 10px;
+  }
+  .seg-card-name {
+    font-size: 12px;
+  }
+  .seg-card-range,
+  .seg-card-dur {
+    font-size: 10px;
+  }
+  .seg-time-input {
+    width: 48px;
+    font-size: 10px;
+  }
+  .seg-play-btn,
+  .seg-update-btn,
+  .marker-update-btn {
+    font-size: 10px;
+  }
+
+  @media (max-width: 1120px) {
+    #file-name { display: none; }
+    #marker-section {
+      width: clamp(210px, 30%, 290px);
+      flex-basis: clamp(210px, 30%, 290px);
+      min-width: 210px;
+      max-width: 36%;
+    }
+    #zoom-section { flex-wrap: wrap; }
+  }
+
+  @media (max-width: 920px) {
+    #bottom-area {
+      flex-direction: row;
+      overflow: hidden;
+    }
+    #marker-section {
+      width: clamp(186px, 38%, 250px);
+      flex-basis: clamp(186px, 38%, 250px);
+      min-width: 186px;
+      max-width: 40%;
+      border-right: 1px solid var(--stroke);
+      border-bottom: none;
+      max-height: none;
+    }
+    #segment-section {
+      width: auto;
+      min-height: 0;
+      min-width: 0;
+    }
+  }
 </style>
 </head>
 <body>
@@ -782,7 +1217,7 @@
         <path d="M20 14v3"></path>
       </svg>
     </span>
-    音频标记切分工具
+    音频切片工坊
   </h1>
   <label id="file-label" for="file-input">
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -792,7 +1227,12 @@
     导入音频
   </label>
   <input type="file" id="file-input" accept="audio/*">
-  <label id="import-excel-label" style="margin-left:8px;" aria-label="导入Excel">
+  <label
+    id="import-excel-label"
+    style="margin-left:8px;"
+    aria-label="导入切片工程表"
+    title="导入由本工具导出的切片工程表，用于恢复切片进度（3列：开始时间、结束时间、切片名）"
+  >
     <svg class="icon-inline" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
       <path d="M4 6h16"></path>
       <path d="M4 12h16"></path>
@@ -800,19 +1240,24 @@
       <path d="M9 4v16"></path>
       <path d="M15 4v16"></path>
     </svg>
-    导入Excel
+    导入切片工程表
   </label>
   <input type="file" id="excel-input" accept=".xls,.xlsx,.csv" style="position:fixed;left:-9999px;top:-9999px;opacity:0;width:1px;height:1px;">
   <span id="file-name">未选择文件</span>
   <div class="spacer"></div>
-  <button class="btn btn-accent" id="export-excel-btn" disabled>
+  <button
+    class="btn btn-accent"
+    id="export-excel-btn"
+    disabled
+    title="把当前切片进度保存为工程表（.xlsx），下次可通过“导入切片工程表”恢复"
+  >
     <svg class="icon-inline" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
       <path d="M12 3v12"></path>
       <path d="M8 11l4 4 4-4"></path>
       <path d="M5 20h14"></path>
       <rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect>
     </svg>
-    导出Excel(.xlsx)
+    导出切片工程表(.xlsx)
   </button>
   <button class="btn btn-export" id="export-btn" disabled>
     <svg class="icon-inline" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
@@ -963,7 +1408,7 @@ let viewStart = 0;
 // 高亮区段缓存（有效配对列表）
 let validPairs = []; // [{start, end, index}]
 
-const CANVAS_H = 180;
+const CANVAS_H = 136;
 
 // ══════════════════════════════════════════════
 //  DOM refs
@@ -1189,9 +1634,9 @@ function drawWaveform(currentTime) {
     const played = i < ctPx;
     const grad   = wCtx.createLinearGradient(i, h/2 - amp, i, h/2 + amp);
     if (played) {
-      grad.addColorStop(0, '#a78bfa'); grad.addColorStop(0.5, '#7c3aed'); grad.addColorStop(1, '#a78bfa');
+      grad.addColorStop(0, '#84c4ff'); grad.addColorStop(0.5, '#2f91ff'); grad.addColorStop(1, '#84c4ff');
     } else {
-      grad.addColorStop(0, '#3b3b6b'); grad.addColorStop(0.5, '#2a2a52'); grad.addColorStop(1, '#3b3b6b');
+      grad.addColorStop(0, '#4a4a4a'); grad.addColorStop(0.5, '#383838'); grad.addColorStop(1, '#4a4a4a');
     }
     wCtx.fillStyle = grad;
     wCtx.fillRect(i, h/2 - amp, 1, amp * 2);
@@ -1208,8 +1653,8 @@ function drawWaveform(currentTime) {
   }
   wCtx.closePath();
   const eg = wCtx.createLinearGradient(0, 0, w, 0);
-  eg.addColorStop(Math.min(ctPx/w, 1), 'rgba(167,139,250,0.07)');
-  eg.addColorStop(Math.min(ctPx/w, 1), 'rgba(58,58,107,0.03)');
+  eg.addColorStop(Math.min(ctPx/w, 1), 'rgba(47,145,255,0.08)');
+  eg.addColorStop(Math.min(ctPx/w, 1), 'rgba(60,60,60,0.03)');
   wCtx.fillStyle = eg; wCtx.fill();
 }
 
@@ -2344,15 +2789,15 @@ exportExcelBtn.addEventListener('click', async () => {
 // ══════════════════════════════════════════════
 //  导入工程（文件夹）
 // ════════════════════════════════════════════
-//  导入 Excel
+//  导入切片工程表
 // ════════════════════════════════════════════
 document.getElementById('import-excel-label').addEventListener('click', () => excelInput.click());
 
 excelInput.addEventListener('change', async e => {
   const file = e.target.files[0];
   if (!file) return;
-  if (!audioBuffer) { alert('请先导入音频文件'); excelInput.value = ''; return; }
-  loadingText.textContent = '正在导入 Excel...'; loadingEl.classList.add('active');
+  if (!audioBuffer) { alert('请先导入音频文件，再导入切片工程表。'); excelInput.value = ''; return; }
+  loadingText.textContent = '正在导入切片工程表...'; loadingEl.classList.add('active');
   try {
     const rows = await parseSpreadsheetRowsFromFile(file);
     const newMarkers = [];
@@ -2366,14 +2811,14 @@ excelInput.addEventListener('change', async e => {
       newMarkers.push({ time: tEnd,   type: 'end',   name: '' });
     });
     if (newMarkers.length === 0) {
-      throw new Error('未读取到有效切片。请导入本工具导出的 .xlsx / .xls / .csv（3列：开始、结束、切片名）');
+      throw new Error('未读取到有效切片。请导入“导出切片工程表”生成的 .xlsx / .xls / .csv（3列：开始时间、结束时间、切片名）。');
     }
     markers = newMarkers;
     renderAll();
     redrawAll(getCurrentTime());
     updateUI(true);
     clearBtn.disabled = false;
-  } catch (err) { alert('导入 Excel 失败：' + err.message); }
+  } catch (err) { alert('导入切片工程表失败：' + err.message); }
   loadingEl.classList.remove('active');
   excelInput.value = '';
 });

@@ -1,0 +1,2326 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>音频标记切分工具</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #0f0f13;
+    color: #e0e0e0;
+    font-family: 'Segoe UI', 'PingFang SC', sans-serif;
+    height: 100vh; overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── 顶栏 ── */
+  header {
+    background: #1a1a24;
+    border-bottom: 1px solid #2e2e40;
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  header h1 { font-size: 17px; font-weight: 600; color: #a78bfa; letter-spacing: .03em; }
+
+  .btn {
+    border: none; cursor: pointer; border-radius: 8px;
+    font-size: 13px; font-weight: 500; padding: 7px 14px;
+    transition: all .15s; white-space: nowrap;
+  }
+  .btn-primary   { background: #7c3aed; color: #fff; }
+  .btn-primary:hover   { background: #6d28d9; }
+  .btn-start     { background: #065f46; color: #6ee7b7; border: 1px solid #10b981; }
+  .btn-start:hover     { background: #047857; }
+  .btn-end       { background: #7f1d1d; color: #fca5a5; border: 1px solid #ef4444; }
+  .btn-end:hover       { background: #991b1b; }
+  .btn-secondary { background: #2e2e42; color: #ccc; }
+  .btn-secondary:hover { background: #3a3a56; }
+  .btn-danger    { background: #4a1010; color: #fca5a5; }
+  .btn-accent    { background: #1a3a2a; color: #6ee7b7; }
+  .btn-danger:hover    { background: #5a1a1a; }
+  .btn-export    { background: #1e3a5f; color: #93c5fd; border: 1px solid #3b82f6; }
+  .btn-export:hover    { background: #1e40af; }
+  .btn:disabled  { opacity: .35; cursor: default; }
+
+  #file-label {
+    display: flex; align-items: center; gap: 8px; cursor: pointer;
+    padding: 7px 14px; border-radius: 8px; background: #2e2e42;
+    color: #ccc; font-size: 13px; transition: background .15s;
+  }
+  #file-label:hover { background: #3a3a56; }
+  #file-input { display: none; }
+  #file-name { font-size: 13px; color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
+  .spacer { flex: 1; }
+
+  /* 快捷键说明 */
+  .key-hint {
+    font-size: 11px; color: #555;
+    background: #1a1a2e; border: 1px solid #2a2a40; border-radius: 5px;
+    padding: 3px 8px;
+  }
+
+  /* ── 波形区 ── */
+  #waveform-wrap {
+    position: relative; margin: 16px 24px 0;
+    border-radius: 12px; overflow: hidden;
+    background: #14141e; border: 1px solid #2a2a3e;
+    cursor: crosshair; user-select: none;
+  }
+  #waveform-canvas { display: block; width: 100%; height: 180px; }
+
+  #playhead {
+    position: absolute; top: 0; bottom: 0; width: 2px;
+    background: #f472b6; pointer-events: none;
+    box-shadow: 0 0 6px #f472b6aa;
+  }
+
+  /* 标记线 */
+  .marker-line {
+    position: absolute; top: 0; bottom: 0; width: 2px;
+    cursor: pointer; z-index: 5;
+  }
+  .marker-line.type-start { background: #10b981; box-shadow: 0 0 6px #10b98188; }
+  .marker-line.type-end   { background: #ef4444; box-shadow: 0 0 6px #ef444488; }
+  .marker-line.type-start:hover { background: #34d399; }
+  .marker-line.type-end:hover   { background: #f87171; }
+  .marker-label {
+    position: absolute; top: 4px; left: 4px;
+    font-size: 10px; white-space: nowrap;
+    pointer-events: none; text-shadow: 0 0 4px #000;
+  }
+  .marker-line.type-start .marker-label { color: #6ee7b7; }
+  .marker-line.type-end   .marker-label { color: #fca5a5; }
+
+  /* 空态 */
+  #empty-hint {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    color: #444; font-size: 15px; pointer-events: none;
+  }
+
+  /* ── 时间轴 ── */
+  #timeline-canvas {
+    display: block; width: calc(100% - 48px); height: 28px;
+    background: #0f0f13; margin: 0 24px;
+  }
+
+  /* ── 进度条 ── */
+  #progress-section {
+    margin: 6px 24px 0; display: flex; align-items: center; gap: 10px;
+  }
+  #progress-track {
+    flex: 1; position: relative; height: 28px;
+    display: flex; align-items: center; cursor: grab;
+  }
+  #progress-track:active { cursor: grabbing; }
+  #progress-bg {
+    position: absolute; left: 0; right: 0; height: 5px;
+    background: #2a2a42; border-radius: 3px; overflow: hidden;
+    transition: height .15s;
+  }
+  #progress-track:hover #progress-bg { height: 8px; }
+  #progress-fill {
+    height: 100%; width: 0%; border-radius: 3px;
+    background: linear-gradient(90deg, #7c3aed, #a78bfa);
+    pointer-events: none;
+  }
+  #progress-thumb {
+    position: absolute; top: 50%; width: 14px; height: 14px;
+    border-radius: 50%; background: #a78bfa; border: 2px solid #7c3aed;
+    transform: translate(-50%, -50%); box-shadow: 0 0 6px #7c3aedaa;
+    pointer-events: none; transition: width .12s, height .12s, background .12s;
+  }
+  #progress-track:hover #progress-thumb,
+  #progress-track.dragging #progress-thumb {
+    width: 18px; height: 18px; background: #c4b5fd;
+    box-shadow: 0 0 10px #a78bfacc;
+  }
+  /* 悬停时间预览气泡 */
+  #progress-hover-tip {
+    position: absolute; bottom: calc(100% + 6px);
+    background: #1e1e30; border: 1px solid #3a3a56;
+    border-radius: 5px; padding: 3px 8px;
+    font-size: 11px; color: #c4b5fd; font-variant-numeric: tabular-nums;
+    pointer-events: none; white-space: nowrap;
+    transform: translateX(-50%); display: none;
+    box-shadow: 0 2px 8px #0006;
+  }
+  #progress-hover-tip::after {
+    content: ''; position: absolute; top: 100%; left: 50%;
+    transform: translateX(-50%);
+    border: 4px solid transparent; border-top-color: #3a3a56;
+  }
+  .prog-time { font-size: 12px; color: #888; font-variant-numeric: tabular-nums; min-width: 58px; }
+  .prog-time.right { color: #555; }
+
+  /* 时间码输入 */
+  #timecode-wrap {
+    display: flex; align-items: center; gap: 4px; flex-shrink: 0;
+  }
+  #timecode-input {
+    width: 82px; padding: 3px 6px; border-radius: 5px;
+    border: 1px solid #3a3a56; background: #14141e; color: #a78bfa;
+    font-size: 12px; font-variant-numeric: tabular-nums;
+    outline: none; text-align: center; transition: border-color .15s;
+  }
+  #timecode-input:focus { border-color: #7c3aed; }
+  #timecode-input::placeholder { color: #444; }
+  #timecode-go {
+    background: #2e2e42; border: 1px solid #3a3a56; color: #a78bfa;
+    border-radius: 5px; padding: 3px 7px; cursor: pointer;
+    font-size: 12px; transition: background .12s; line-height: 1;
+  }
+  #timecode-go:hover { background: #3a3a56; }
+
+  /* ── 缩放 & 滚动 ── */
+  #zoom-section {
+    margin: 8px 24px 0; display: flex; align-items: center; gap: 10px;
+  }
+  #zoom-section label { font-size: 12px; color: #666; white-space: nowrap; }
+  #zoom-slider { accent-color: #7c3aed; width: 130px; cursor: pointer; }
+  #zoom-display { font-size: 12px; color: #a78bfa; min-width: 36px; }
+  .zoom-sep { width: 1px; height: 18px; background: #2e2e40; }
+  #scroll-track {
+    flex: 1; position: relative; height: 8px;
+    background: #1e1e2e; border-radius: 4px; overflow: hidden; cursor: pointer;
+  }
+  #scroll-thumb {
+    position: absolute; top: 0; bottom: 0;
+    background: #3a3a6a; border-radius: 4px; cursor: grab; min-width: 20px;
+    transition: background .15s;
+  }
+  #scroll-thumb:hover, #scroll-thumb.dragging { background: #6d6daa; cursor: grabbing; }
+
+  /* ── 控制区 ── */
+  #controls {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 24px; background: #1a1a24;
+    border-top: 1px solid #2e2e40; flex-wrap: wrap; margin-top: 10px;
+  }
+  #play-btn {
+    width: 42px; height: 42px; border-radius: 50%; background: #7c3aed;
+    border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background .15s; flex-shrink: 0;
+  }
+  #play-btn:hover { background: #6d28d9; }
+  #play-btn:disabled { opacity: .35; cursor: default; }
+  #play-btn svg { width: 17px; height: 17px; fill: #fff; }
+  #time-display {
+    font-size: 13px; font-variant-numeric: tabular-nums;
+    color: #a78bfa; min-width: 110px;
+  }
+  .ctrl-group { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #888; }
+  .ctrl-group input[type=range] { accent-color: #7c3aed; width: 75px; cursor: pointer; }
+  .sep { width: 1px; height: 26px; background: #2e2e40; }
+
+  /* ══ 警告横幅（新增）══ */
+  #warning-banner {
+    display: none; margin: 8px 24px 0;
+    background: #3d2000; border: 1px solid #f59e0b;
+    border-radius: 8px; padding: 10px 16px;
+    font-size: 13px; color: #fcd34d; line-height: 1.6;
+  }
+  #warning-banner.active { display: block; }
+  #warning-banner ul { margin: 4px 0 0 18px; }
+
+  /* ── 主体分栏 ── */
+  #bottom-area {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    width: 100%;
+  }
+
+  /* ── 标记列表 ── */
+  #marker-section {
+    width: 30%; flex-shrink: 0;
+    height: 100%;
+    border-right: 1px solid #2e2e40;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    padding: 14px 14px 14px 24px; min-height: 0;
+  }
+  #marker-section h2 { font-size: 11px; font-weight: 500; color: #666; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #1e1e30; }
+  #marker-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 5px; min-height: 0; }
+  #marker-list::-webkit-scrollbar { width: 4px; }
+  #marker-list::-webkit-scrollbar-thumb { background: #3a3a56; border-radius: 3px; }
+
+  .marker-item {
+    display: flex; align-items: center; gap: 8px;
+    border-radius: 8px; padding: 7px 10px;
+    transition: border-color .15s;
+  }
+  .marker-item.type-start { background: #0a2218; border: 1px solid #10b98144; }
+  .marker-item.type-end   { background: #200a0a; border: 1px solid #ef444444; }
+  .marker-item.type-start:hover { border-color: #10b981; }
+  .marker-item.type-end:hover   { border-color: #ef4444; }
+  .marker-item.error { border-color: #f59e0b !important; background: #2a1a00 !important; }
+
+  .marker-badge {
+    font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 20px; flex-shrink: 0;
+  }
+  .badge-start { background: #065f46; color: #6ee7b7; }
+  .badge-end   { background: #7f1d1d; color: #fca5a5; }
+  .badge-error { background: #78350f; color: #fcd34d; }
+
+  .marker-time { font-size: 13px; font-variant-numeric: tabular-nums; color: #e0e0e0; min-width: 62px; }
+  .marker-name-input {
+    flex: 1; background: transparent; border: none;
+    border-bottom: 1px solid #3a3a56; color: #ccc;
+    font-size: 12px; padding: 2px 4px; outline: none; transition: border-color .15s;
+  }
+  .marker-name-input:focus { border-color: #7c3aed; }
+  .marker-jump { background: none; border: none; cursor: pointer; color: #7c3aed; font-size: 12px; padding: 2px 5px; border-radius: 4px; }
+  .marker-jump:hover { background: #2e2e42; }
+  .marker-time-input {
+    width: 60px; background: #1a1a28; border: 1px solid #2e2e40;
+    border-radius: 4px; color: #c4b5fd; font-size: 11px;
+    text-align: center; font-variant-numeric: tabular-nums;
+    padding: 2px 3px; outline: none; transition: border-color .15s;
+  }
+  .marker-time-input:focus { border-color: #7c3aed; }
+  .marker-time-input:invalid { border-color: #ef4444; }
+  .marker-update-btn {
+    background: none; border: 1px solid #2e2e40; cursor: pointer;
+    color: #7c3aed; font-size: 10px; padding: 2px 5px; border-radius: 4px;
+    white-space: nowrap; transition: all .15s;
+  }
+  .marker-update-btn:hover { background: #7c3aed22; border-color: #7c3aed; }
+  .marker-del { background: none; border: none; cursor: pointer; color: #f87171; font-size: 15px; padding: 2px 5px; border-radius: 4px; }
+  .marker-del:hover { background: #3a1414; }
+
+  /* ── 波形高亮区域可交互 ── */
+  .seg-region {
+    position: absolute; top: 0; bottom: 0;
+    cursor: pointer; z-index: 3;
+    /* 内容由 canvas 绘制，此层只负责交互 */
+  }
+  .seg-region:hover::after {
+    content: '▶ 播放';
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(16,185,129,0.85); color: #fff;
+    font-size: 12px; font-weight: 700;
+    padding: 4px 10px; border-radius: 20px;
+    pointer-events: none; white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  }
+  .seg-region.playing-region::before {
+    content: '';
+    position: absolute; inset: 0;
+    border: 2px solid #10b981;
+    border-radius: 0;
+    animation: region-pulse 1.2s ease-in-out infinite;
+    pointer-events: none;
+  }
+  @keyframes region-pulse {
+    0%,100% { opacity: 1; } 50% { opacity: 0.35; }
+  }
+  .seg-region.playing-region::after {
+    content: '◼ 停止';
+    position: absolute; top: 6px; left: 50%;
+    transform: translateX(-50%);
+    background: rgba(239,68,68,0.85); color: #fff;
+    font-size: 11px; font-weight: 700;
+    padding: 2px 8px; border-radius: 12px;
+    pointer-events: none; white-space: nowrap;
+    display: block !important;
+  }
+
+  /* ── 切片预览 ── */
+  #segment-section {
+    display: flex; flex-direction: column;
+    padding: 14px 24px 14px 14px;
+    min-height: 0; overflow: hidden;
+    flex: 1;
+  }
+  #segment-section h2 { font-size: 11px; font-weight: 500; color: #666; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #1e1e30; }
+  #segment-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; min-height: 0; }
+  #segment-list::-webkit-scrollbar { width: 4px; }
+  #segment-list::-webkit-scrollbar-thumb { background: #3a3a56; border-radius: 3px; }
+
+  .seg-card {
+    background: #0d1f2d; border: 1px solid #1e4060;
+    border-radius: 8px; padding: 8px 12px;
+    transition: border-color .15s;
+  }
+  .seg-card:hover { border-color: #3b82f6; }
+  .seg-card-header {
+    display: flex; align-items: center; gap: 6px; margin-bottom: 4px;
+  }
+  .seg-card-name {
+    flex: 1; background: transparent; border: none;
+    border-bottom: 1px solid transparent; color: #93c5fd;
+    font-size: 13px; font-weight: 600; padding: 1px 3px;
+    outline: none; cursor: text; min-width: 0;
+    transition: border-color .15s;
+  }
+  .seg-card-name:hover { border-bottom-color: #3b82f680; }
+  .seg-card-name:focus { border-bottom-color: #3b82f6; cursor: text; background: #0a1828; border-radius: 3px 3px 0 0; }
+  .seg-play-btn {
+    flex-shrink: 0; background: #065f46; border: 1px solid #10b98166;
+    color: #6ee7b7; border-radius: 6px; padding: 3px 8px;
+    font-size: 11px; font-weight: 600; cursor: pointer;
+    transition: all .12s; white-space: nowrap;
+  }
+  .seg-play-btn:hover { background: #047857; border-color: #10b981; }
+  .seg-play-btn.stop { background: #7f1d1d; border-color: #ef444466; color: #fca5a5; }
+  .seg-play-btn.stop:hover { background: #991b1b; border-color: #ef4444; }
+  .seg-card-range { font-size: 11px; color: #888; font-variant-numeric: tabular-nums; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+  .seg-time-input {
+    width: 52px; background: #1a1a28; border: 1px solid #2e2e40;
+    border-radius: 4px; color: #c4b5fd; font-size: 11px;
+    text-align: center; font-variant-numeric: tabular-nums;
+    padding: 1px 2px; outline: none; transition: border-color .15s;
+  }
+  .seg-time-input:focus { border-color: #7c3aed; }
+  .seg-time-input:invalid { border-color: #ef4444; }
+  .seg-update-btn {
+    background: none; border: 1px solid #2e2e40; cursor: pointer;
+    color: #7c3aed; font-size: 10px; padding: 1px 4px; border-radius: 3px;
+    transition: all .15s; line-height: 1.4;
+  }
+  .seg-update-btn:hover { background: #7c3aed22; border-color: #7c3aed; }
+
+  .seg-card-idx {
+    font-size: 11px; font-weight: 700; color: #7c3aed;
+    background: #7c3aed18; border-radius: 4px;
+    padding: 1px 6px; margin-right: 6px; flex-shrink: 0;
+    line-height: 1.6;
+  }
+  .seg-card-dur   { font-size: 11px; color: #4ade80; margin-top: 2px; }
+  .seg-card.playing { border-color: #10b981; background: #071a12; }
+
+  .seg-empty { font-size: 12px; color: #444; padding: 8px 0; }
+
+  /* 加载遮罩 */
+  #loading {
+    display: none; position: fixed; inset: 0; background: #0008;
+    align-items: center; justify-content: center;
+    flex-direction: column; gap: 14px; z-index: 99;
+  }
+  #loading.active { display: flex; }
+  .spinner {
+    width: 38px; height: 38px; border: 3px solid #3a3a56;
+    border-top-color: #7c3aed; border-radius: 50%;
+    animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* tooltip */
+  .tooltip {
+    position: fixed; background: #1e1e30; border: 1px solid #3a3a56;
+    border-radius: 6px; padding: 5px 10px; font-size: 12px; color: #ccc;
+    pointer-events: none; z-index: 50; display: none;
+  }
+
+  /* ══ 操作栏：播放+标记集中区（紧邻波形）══ */
+  #action-bar {
+    margin: 8px 24px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .ab-play {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: #7c3aed; border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background .12s; flex-shrink: 0;
+  }
+  .ab-play:hover:not(:disabled) { background: #6d28d9; }
+  .ab-play:disabled { opacity: .3; cursor: default; }
+  .ab-play svg { width: 16px; height: 16px; fill: #fff; }
+  .ab-sep { width: 1px; height: 24px; background: #2e2e40; }
+  .ab-btn {
+    border: none; cursor: pointer; border-radius: 7px;
+    font-size: 13px; font-weight: 600; padding: 7px 14px;
+    display: flex; align-items: center; gap: 5px;
+    transition: all .12s; letter-spacing: .01em;
+  }
+  .ab-btn:disabled { opacity: .3; cursor: default; }
+  .ab-btn .kbd { font-size: 10px; background: rgba(255,255,255,0.12);
+    border-radius: 3px; padding: 0 4px; line-height: 16px; margin-left: 2px; }
+  .ab-btn-start { background: #065f46; color: #6ee7b7; border: 1px solid #10b98166; }
+  .ab-btn-start:hover:not(:disabled) { background: #047857; }
+  .ab-btn-end   { background: #7f1d1d; color: #fca5a5; border: 1px solid #ef444466; }
+  .ab-btn-end:hover:not(:disabled)   { background: #991b1b; }
+  .ab-time { font-size: 13px; color: #a78bfa; font-variant-numeric: tabular-nums;
+    min-width: 110px; margin-left: 4px; }
+  .ab-spacer { flex: 1; }
+  .ab-extra { display: flex; align-items: center; gap: 6px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🎵 音频标记切分工具</h1>
+  <label id="file-label" for="file-input">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+      <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+    </svg>
+    导入音频
+  </label>
+  <input type="file" id="file-input" accept="audio/*">
+  <label id="import-excel-label" style="cursor:pointer;font-size:13px;color:#888;display:inline-flex;align-items:center;gap:4px;margin-left:8px;">
+    📊 导入Excel
+  </label>
+  <input type="file" id="excel-input" accept=".xls,.xlsx,.csv" style="position:fixed;left:-9999px;top:-9999px;opacity:0;width:1px;height:1px;">
+  <span id="file-name">未选择文件</span>
+  <div class="spacer"></div>
+  <button class="btn btn-accent"    id="export-excel-btn" disabled>📊 导出Excel(.xlsx)</button>
+  <button class="btn btn-export"    id="export-btn"    disabled>⬇ 导出切片</button>
+  <button class="btn btn-danger"    id="clear-btn"     disabled>✕ 清空</button>
+</header>
+
+<!-- 警告横幅 -->
+<div id="warning-banner"></div>
+<!-- ══ 操作栏：播放 + 开始标记 + 结束标记（紧邻波形）══ -->
+<div id="action-bar">
+  <button class="ab-play" id="play-btn" disabled>
+    <svg id="play-icon" viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
+  </button>
+  <div class="ab-sep"></div>
+  <button class="ab-btn ab-btn-start" id="add-start-btn" disabled>▶ 开始 <span class="kbd">S</span></button>
+  <button class="ab-btn ab-btn-end" id="add-end-btn" disabled>■ 结束 <span class="kbd">E</span></button>
+  <span class="ab-time" id="time-display">00:00.0 / 00:00.0</span>
+  <div class="ab-spacer"></div>
+  <div class="ab-extra">
+    <span style="font-size:11px;color:#444">空格=播放</span>
+  </div>
+</div>
+
+<!-- 波形 -->
+<div id="waveform-wrap">
+  <canvas id="waveform-canvas"></canvas>
+  <div id="playhead"></div>
+  <div id="empty-hint">请先导入音频文件</div>
+</div>
+<!-- 时间轴 -->
+<canvas id="timeline-canvas"></canvas>
+
+<!-- 进度条 -->
+<div id="progress-section">
+  <div id="timecode-wrap">
+    <input type="text" id="timecode-input" placeholder="00:00.0" spellcheck="false" autocomplete="off">
+    <button id="timecode-go" title="跳转">⏎</button>
+  </div>
+  <span class="prog-time" id="progress-time-left">00:00.0</span>
+  <div id="progress-track">
+    <div id="progress-bg"><div id="progress-fill"></div></div>
+    <div id="progress-thumb"></div>
+    <div id="progress-hover-tip"></div>
+  </div>
+  <span class="prog-time right" id="progress-time-right">00:00.0</span>
+</div>
+
+<!-- 缩放 & 滚动 -->
+<div id="zoom-section">
+  <label>🔍 缩放</label>
+  <input type="range" id="zoom-slider" min="1" max="32" step="0.5" value="1">
+  <span id="zoom-display">1×</span>
+  <div class="zoom-sep"></div>
+  <label>视图滚动</label>
+  <div id="scroll-track"><div id="scroll-thumb"></div></div>
+</div>
+
+<!-- 控制区 -->
+<div id="controls">
+  <div class="ctrl-group">🔊<input type="range" id="volume" min="0" max="1" step="0.01" value="1"></div>
+  <div class="sep"></div>
+  <div class="ctrl-group">
+    速度 <input type="range" id="playback-rate" min="0.25" max="2" step="0.05" value="1">
+    <span id="rate-display">1.0×</span>
+  </div>
+</div>
+
+<!-- 下半：标记列表 + 切片预览 -->
+<div id="bottom-area">
+  <div id="marker-section">
+    <h2>标记点列表</h2>
+    <div id="marker-list"></div>
+  </div>
+  <div id="segment-section">
+    <h2>切片列表（点击试听）</h2>
+    <div id="segment-list"></div>
+  </div>
+</div>
+
+<!-- 加载遮罩 -->
+<div id="loading">
+  <div class="spinner"></div>
+  <span style="color:#888;font-size:14px" id="loading-text">正在解码音频...</span>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+// ══════════════════════════════════════════════
+//  状态
+// ══════════════════════════════════════════════
+let audioCtx    = null;
+let audioBuffer = null;
+let sourceNode  = null;
+let startTime   = 0;
+let startOffset = 0;
+let isPlaying   = false;
+let duration    = 0;
+let animFrame   = null;
+let channelData = null;
+let sourceAudioMime = '';
+let sourceAudioExt  = 'wav';
+const ENABLE_SLOW_ORIGINAL_ENCODING = false;
+let hasShownSavePathHint = false;
+
+// 标记：每个元素 { type: 'start'|'end', time, name }
+let markers = [];
+
+// 片段播放状态：null = 未播放片段；{ pairIdx, endTime, stopTimer } = 正在播放某片段
+let segPlayState = null;
+
+// 缩放 & 视图
+let zoomLevel = 1;
+let viewStart = 0;
+
+// 高亮区段缓存（有效配对列表）
+let validPairs = []; // [{start, end, index}]
+
+const CANVAS_H = 180;
+
+// ══════════════════════════════════════════════
+//  DOM refs
+// ══════════════════════════════════════════════
+const fileInput     = document.getElementById('file-input');
+const fileNameEl    = document.getElementById('file-name');
+const wrapEl        = document.getElementById('waveform-wrap');
+const waveCanvas    = document.getElementById('waveform-canvas');
+const tlCanvas      = document.getElementById('timeline-canvas');
+const playheadEl    = document.getElementById('playhead');
+const playBtn       = document.getElementById('play-btn');
+const playIcon      = document.getElementById('play-icon');
+const timeDisplay   = document.getElementById('time-display');
+const volumeSlider  = document.getElementById('volume');
+const rateSlider    = document.getElementById('playback-rate');
+const rateDisplay   = document.getElementById('rate-display');
+const addStartBtn   = document.getElementById('add-start-btn');
+const addEndBtn     = document.getElementById('add-end-btn');
+const exportBtn     = document.getElementById('export-btn');
+const clearBtn         = document.getElementById('clear-btn');
+const exportExcelBtn   = document.getElementById('export-excel-btn');
+const excelInput        = document.getElementById('excel-input');
+const markerListEl     = document.getElementById('marker-list');
+const segmentListEl = document.getElementById('segment-list');
+const emptyHint     = document.getElementById('empty-hint');
+const loadingEl     = document.getElementById('loading');
+const loadingText   = document.getElementById('loading-text');
+const tooltipEl     = document.getElementById('tooltip');
+const warningBanner = document.getElementById('warning-banner');
+const progressTrack = document.getElementById('progress-track');
+const progressFill  = document.getElementById('progress-fill');
+const progressThumb = document.getElementById('progress-thumb');
+const progressLeft  = document.getElementById('progress-time-left');
+const progressRight = document.getElementById('progress-time-right');
+const timecodeInput = document.getElementById('timecode-input');
+const timecodeGo    = document.getElementById('timecode-go');
+const zoomSlider    = document.getElementById('zoom-slider');
+const zoomDisplay   = document.getElementById('zoom-display');
+const scrollTrack   = document.getElementById('scroll-track');
+const scrollThumb   = document.getElementById('scroll-thumb');
+const wCtx          = waveCanvas.getContext('2d');
+const tCtx          = tlCanvas.getContext('2d');
+
+// ══════════════════════════════════════════════
+//  文件加载
+// ══════════════════════════════════════════════
+fileInput.addEventListener('change', async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  sourceAudioMime = (file.type || '').toLowerCase();
+  sourceAudioExt  = inferExtFromFile(file.name, sourceAudioMime);
+  fileNameEl.textContent = file.name;
+  loadingText.textContent = '正在解码音频...';
+  loadingEl.classList.add('active');
+  try {
+    audioCtx    = new (window.AudioContext || window.webkitAudioContext)();
+    const ab    = await file.arrayBuffer();
+    audioBuffer = await audioCtx.decodeAudioData(ab);
+    duration    = audioBuffer.duration;
+
+    stopPlayback();
+    markers     = [];
+    validPairs  = [];
+    zoomLevel   = 1;
+    viewStart   = 0;
+    zoomSlider.value = 1;
+    zoomDisplay.textContent = '1×';
+
+    channelData = audioBuffer.getChannelData(0);
+    resizeCanvases();
+    drawWaveform();
+    drawTimeline();
+    renderAll();
+    updateUI(true);
+    updateScrollThumb();
+    updateProgressBar(0);
+    progressRight.textContent = fmtTime(duration);
+    emptyHint.style.display = 'none';
+  } catch(err) {
+    alert('音频解码失败：' + err.message);
+  } finally {
+    loadingEl.classList.remove('active');
+  }
+});
+
+// ══════════════════════════════════════════════
+//  配对计算 & 校验
+// ══════════════════════════════════════════════
+function computePairsAndValidate() {
+  const warnings = [];
+  const pairs    = [];
+
+  // 按时间排序（保留原始索引）
+  const sorted = [...markers].map((m, i) => ({ ...m, origIdx: i })).sort((a, b) => a.time - b.time);
+
+  let pendingStart = null;
+  for (let i = 0; i < sorted.length; i++) {
+    const m = sorted[i];
+    if (m.type === 'start') {
+      if (pendingStart !== null) {
+        warnings.push(`连续两个开始标记（${fmtTime(pendingStart.time)} 和 ${fmtTime(m.time)}），缺少中间的结束标记`);
+      }
+      pendingStart = m;
+    } else { // end
+      if (pendingStart === null) {
+        warnings.push(`${fmtTime(m.time)} 处有结束标记，但前面没有对应的开始标记`);
+      } else {
+        pairs.push({ start: pendingStart.time, end: m.time, startName: pendingStart.name, endName: m.name, startOrigIdx: pendingStart.origIdx, endOrigIdx: m.origIdx });
+        pendingStart = null;
+      }
+    }
+  }
+  if (pendingStart !== null) {
+    warnings.push(`${fmtTime(pendingStart.time)} 处有开始标记，但没有对应的结束标记`);
+  }
+
+  validPairs = pairs;
+
+  // 显示警告
+  if (warnings.length > 0) {
+    warningBanner.classList.add('active');
+    warningBanner.innerHTML = '⚠️ <strong>标记配对有误，请检查：</strong><ul>' +
+      warnings.map(w => `<li>${w}</li>`).join('') + '</ul>';
+  } else {
+    warningBanner.classList.remove('active');
+    warningBanner.innerHTML = '';
+  }
+
+  const noPairs = pairs.length === 0;
+  exportBtn.disabled = noPairs;
+  exportExcelBtn.disabled = noPairs;
+}
+
+// ══════════════════════════════════════════════
+//  峰值提取
+// ══════════════════════════════════════════════
+function getPeaks(width) {
+  const ch     = channelData;
+  const total  = ch.length;
+  const sr     = audioBuffer.sampleRate;
+  const viewDur = duration / zoomLevel;
+  const viewEnd = Math.min(viewStart + viewDur, duration);
+  const sStart  = Math.floor(viewStart * sr);
+  const sEnd    = Math.floor(viewEnd   * sr);
+  const sLen    = sEnd - sStart;
+  const peaks   = new Float32Array(width);
+  const step    = sLen / width;
+  for (let i = 0; i < width; i++) {
+    const s = sStart + Math.floor(i * step);
+    const e = sStart + Math.floor((i + 1) * step);
+    let max = 0;
+    for (let j = s; j < e && j < total; j++) {
+      const v = Math.abs(ch[j]);
+      if (v > max) max = v;
+    }
+    peaks[i] = max;
+  }
+  return peaks;
+}
+
+// ══════════════════════════════════════════════
+//  画布尺寸
+// ══════════════════════════════════════════════
+function resizeCanvases() {
+  const dpr = window.devicePixelRatio || 1;
+  const w   = wrapEl.clientWidth;
+
+  waveCanvas.width  = w * dpr; waveCanvas.height = CANVAS_H * dpr;
+  waveCanvas.style.width = w + 'px'; waveCanvas.style.height = CANVAS_H + 'px';
+  wCtx.scale(dpr, dpr);
+
+  tlCanvas.width  = w * dpr; tlCanvas.height = 28 * dpr;
+  tlCanvas.style.width = w + 'px'; tlCanvas.style.height = '28px';
+  tCtx.scale(dpr, dpr);
+}
+
+window.addEventListener('resize', () => {
+  if (!audioBuffer) return;
+  resizeCanvases(); redrawAll(getCurrentTime());
+});
+
+// ══════════════════════════════════════════════
+//  波形绘制（含高亮区段）
+// ══════════════════════════════════════════════
+function drawWaveform(currentTime) {
+  if (!audioBuffer) return;
+  const w    = waveCanvas.width / (window.devicePixelRatio || 1);
+  const h    = CANVAS_H;
+  const peaks = getPeaks(Math.floor(w));
+  const viewDur = duration / zoomLevel;
+  const ct   = currentTime !== undefined ? currentTime : getCurrentTime();
+  const ctPx = viewDur > 0 ? ((ct - viewStart) / viewDur) * w : 0;
+
+  wCtx.clearRect(0, 0, w, h);
+
+  // 背景
+  const bg = wCtx.createLinearGradient(0, 0, 0, h);
+  bg.addColorStop(0, '#1a1a2e'); bg.addColorStop(1, '#0f0f1a');
+  wCtx.fillStyle = bg;
+  wCtx.fillRect(0, 0, w, h);
+
+  // ── 高亮配对区段 ──
+  for (const pair of validPairs) {
+    const x1 = Math.max(0, ((pair.start - viewStart) / viewDur) * w);
+    const x2 = Math.min(w, ((pair.end   - viewStart) / viewDur) * w);
+    if (x2 <= 0 || x1 >= w) continue;
+    wCtx.fillStyle = 'rgba(16, 185, 129, 0.10)';
+    wCtx.fillRect(x1, 0, x2 - x1, h);
+    // 顶部高亮条
+    wCtx.fillStyle = 'rgba(16, 185, 129, 0.5)';
+    wCtx.fillRect(x1, 0, x2 - x1, 3);
+    wCtx.fillStyle = 'rgba(16, 185, 129, 0.5)';
+    wCtx.fillRect(x1, h - 3, x2 - x1, 3);
+  }
+
+  // 中线
+  wCtx.strokeStyle = '#2a2a42'; wCtx.lineWidth = 1;
+  wCtx.beginPath(); wCtx.moveTo(0, h/2); wCtx.lineTo(w, h/2); wCtx.stroke();
+
+  // 波形条
+  for (let i = 0; i < peaks.length; i++) {
+    const amp    = peaks[i] * (h / 2) * 0.9;
+    const played = i < ctPx;
+    const grad   = wCtx.createLinearGradient(i, h/2 - amp, i, h/2 + amp);
+    if (played) {
+      grad.addColorStop(0, '#a78bfa'); grad.addColorStop(0.5, '#7c3aed'); grad.addColorStop(1, '#a78bfa');
+    } else {
+      grad.addColorStop(0, '#3b3b6b'); grad.addColorStop(0.5, '#2a2a52'); grad.addColorStop(1, '#3b3b6b');
+    }
+    wCtx.fillStyle = grad;
+    wCtx.fillRect(i, h/2 - amp, 1, amp * 2);
+  }
+
+  // 包络线
+  wCtx.beginPath();
+  for (let i = 0; i < peaks.length; i++) {
+    const y = h/2 - peaks[i] * (h/2) * 0.9;
+    i === 0 ? wCtx.moveTo(i, y) : wCtx.lineTo(i, y);
+  }
+  for (let i = peaks.length - 1; i >= 0; i--) {
+    wCtx.lineTo(i, h/2 + peaks[i] * (h/2) * 0.9);
+  }
+  wCtx.closePath();
+  const eg = wCtx.createLinearGradient(0, 0, w, 0);
+  eg.addColorStop(Math.min(ctPx/w, 1), 'rgba(167,139,250,0.07)');
+  eg.addColorStop(Math.min(ctPx/w, 1), 'rgba(58,58,107,0.03)');
+  wCtx.fillStyle = eg; wCtx.fill();
+}
+
+// ══════════════════════════════════════════════
+//  时间轴绘制
+// ══════════════════════════════════════════════
+function drawTimeline() {
+  if (!audioBuffer) return;
+  const w       = tlCanvas.width / (window.devicePixelRatio || 1);
+  const h       = 28;
+  const viewDur = duration / zoomLevel;
+  const viewEnd = Math.min(viewStart + viewDur, duration);
+
+  tCtx.clearRect(0, 0, w, h);
+  tCtx.fillStyle = '#0f0f13'; tCtx.fillRect(0, 0, w, h);
+
+  const step   = niceStep(viewDur, w / 60);
+  const firstT = Math.ceil(viewStart / step) * step;
+  tCtx.font = '10px monospace'; tCtx.textAlign = 'center';
+
+  for (let t = firstT; t <= viewEnd + 0.001; t += step) {
+    const x = ((t - viewStart) / viewDur) * w;
+    tCtx.strokeStyle = '#2a2a42'; tCtx.lineWidth = 1;
+    tCtx.beginPath(); tCtx.moveTo(x, 0); tCtx.lineTo(x, 8); tCtx.stroke();
+    tCtx.fillStyle = '#666'; tCtx.fillText(fmtTime(t), x, 22);
+  }
+}
+
+function niceStep(total, maxLabels) {
+  for (const s of [0.05,0.1,0.25,0.5,1,2,5,10,15,30,60,120,300,600]) {
+    if (total / s <= maxLabels) return s;
+  }
+  return 600;
+}
+
+// ══════════════════════════════════════════════
+//  进度条
+// ══════════════════════════════════════════════
+function updateProgressBar(ct) {
+  if (!duration) return;
+  const pct = Math.min(ct / duration, 1);
+  progressFill.style.width = (pct * 100) + '%';
+  progressThumb.style.left = (pct * 100) + '%';
+  progressLeft.textContent = fmtTime(ct);
+}
+
+let progressDragging = false;
+const progressHoverTip = document.getElementById('progress-hover-tip');
+
+function progressPxToTime(clientX) {
+  const rect = progressTrack.getBoundingClientRect();
+  const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
+  return (x / rect.width) * duration;
+}
+function showProgressTip(clientX) {
+  const rect = progressTrack.getBoundingClientRect();
+  const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
+  const t = (x / rect.width) * duration;
+  progressHoverTip.style.display = 'block';
+  progressHoverTip.style.left = x + 'px';
+  progressHoverTip.textContent = fmtTime(t);
+}
+function hideProgressTip() {
+  progressHoverTip.style.display = 'none';
+}
+
+function progressSeek(e) {
+  seekTo(progressPxToTime(e.clientX));
+  showProgressTip(e.clientX);
+}
+progressTrack.addEventListener('mousedown', e => {
+  if (!audioBuffer) return;
+  progressDragging = true;
+  progressTrack.classList.add('dragging');
+  progressSeek(e);
+});
+progressTrack.addEventListener('mousemove', e => {
+  if (!audioBuffer) return;
+  showProgressTip(e.clientX);
+  if (progressDragging) progressSeek(e);
+});
+progressTrack.addEventListener('mouseleave', () => {
+  hideProgressTip();
+});
+document.addEventListener('mousemove', e => {
+  if (progressDragging) {
+    progressSeek(e);
+    showProgressTip(e.clientX);
+  }
+});
+document.addEventListener('mouseup', () => {
+  if (progressDragging) {
+    progressDragging = false;
+    progressTrack.classList.remove('dragging');
+  }
+});
+progressTrack.addEventListener('touchstart', e => {
+  if (!audioBuffer) return;
+  progressDragging = true;
+  progressTrack.classList.add('dragging');
+  progressSeek(e.touches[0]);
+}, { passive: true });
+document.addEventListener('touchmove', e => { if (progressDragging) progressSeek(e.touches[0]); }, { passive: true });
+document.addEventListener('touchend', () => {
+  progressDragging = false;
+  progressTrack.classList.remove('dragging');
+});
+
+// ══════════════════════════════════════════════
+//  时间码跳转
+// ══════════════════════════════════════════════
+// 支持格式：
+//   SS.M        → 秒.毫秒十进制（如 90.5）
+//   MM:SS       → 分:秒（如 1:30 或 01:30）
+//   MM:SS.M     → 分:秒.毫秒十进制（如 1:30.5）
+//   HH:MM:SS    → 时:分:秒（如 1:02:30）
+//   HH:MM:SS.M  → 时:分:秒.毫秒十进制
+function parseTimecode(str) {
+  str = str.trim();
+  if (!str) return NaN;
+
+  // HH:MM:SS 或 HH:MM:SS.M
+  let m = str.match(/^(\d{1,3}):(\d{1,2}):(\d{1,2})(?:\.(\d+))?$/);
+  if (m) {
+    return parseInt(m[1])*3600 + parseInt(m[2])*60 + parseInt(m[3]) + (m[4] ? parseInt(m[4]) / Math.pow(10, m[4].length) : 0);
+  }
+
+  // MM:SS 或 MM:SS.M
+  m = str.match(/^(\d{1,3}):(\d{1,2})(?:\.(\d+))?$/);
+  if (m) {
+    return parseInt(m[1])*60 + parseInt(m[2]) + (m[3] ? parseInt(m[3]) / Math.pow(10, m[3].length) : 0);
+  }
+
+  // 纯数字 SS.M
+  m = str.match(/^(\d+(?:\.\d+)?)$/);
+  if (m) return parseFloat(m[1]);
+
+  return NaN;
+}
+
+function doTimecodeJump() {
+  if (!audioBuffer) return;
+  const v = parseTimecode(timecodeInput.value);
+  if (isNaN(v)) {
+    timecodeInput.style.borderColor = '#ef4444';
+    setTimeout(() => { timecodeInput.style.borderColor = ''; }, 1200);
+    return;
+  }
+  seekTo(v);
+  timecodeInput.blur();
+}
+
+timecodeGo.addEventListener('click', doTimecodeJump);
+timecodeInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); doTimecodeJump(); }
+  if (e.key === 'Escape') { timecodeInput.blur(); }
+});
+// 失焦时若内容有变化且非空，自动跳转
+// 若失焦是因为点击了「跳转」按钮，则由按钮的 click 处理，此处跳过
+let tcLast = '';
+timecodeInput.addEventListener('focus', () => {
+  if (audioBuffer) {
+    timecodeInput.value = fmtTime(getCurrentTime());
+    setTimeout(() => timecodeInput.select(), 0); // 全选，方便直接修改
+    tcLast = timecodeInput.value;
+  }
+});
+timecodeInput.addEventListener('blur', e => {
+  if (e.relatedTarget === timecodeGo) return; // 交给按钮的 click 处理
+  const v = timecodeInput.value.trim();
+  if (v && v !== tcLast) doTimecodeJump();
+});
+
+// 播放过程中同步更新时间码输入框的 placeholder（提示当前时间）
+// 用户正在编辑时不覆盖
+function syncTimecodeDisplay(ct) {
+  if (document.activeElement === timecodeInput) return;
+  timecodeInput.placeholder = fmtTime(ct);
+}
+
+// ══════════════════════════════════════════════
+//  缩放
+// ══════════════════════════════════════════════
+zoomSlider.addEventListener('input', () => {
+  if (!audioBuffer) return;
+  applyZoom(parseFloat(zoomSlider.value), getCurrentTime(), 0.5);
+});
+
+wrapEl.addEventListener('wheel', e => {
+  if (!audioBuffer) return;
+  e.preventDefault();
+  const rect   = wrapEl.getBoundingClientRect();
+  const xFrac  = (e.clientX - rect.left) / rect.width;
+  const tAtCur = viewStart + xFrac * (duration / zoomLevel);
+  applyZoom(zoomLevel * (e.deltaY < 0 ? 1.15 : 0.87), tAtCur, xFrac);
+}, { passive: false });
+
+function applyZoom(newZoom, pivotTime, pivotFrac) {
+  newZoom = Math.max(1, Math.min(32, newZoom));
+  const newViewDur = duration / newZoom;
+  let   newStart   = pivotTime - pivotFrac * newViewDur;
+  newStart = Math.max(0, Math.min(duration - newViewDur, newStart));
+  zoomLevel = newZoom; viewStart = newStart;
+  zoomSlider.value = newZoom;
+  zoomDisplay.textContent = newZoom % 1 === 0 ? newZoom + '×' : newZoom.toFixed(1) + '×';
+  redrawAll(getCurrentTime()); updateScrollThumb();
+}
+
+// ══════════════════════════════════════════════
+//  横向滚动条
+// ══════════════════════════════════════════════
+function updateScrollThumb() {
+  if (!audioBuffer || zoomLevel <= 1) {
+    scrollThumb.style.left = '0%'; scrollThumb.style.width = '100%'; return;
+  }
+  const viewDur = duration / zoomLevel;
+  scrollThumb.style.width = Math.max(4, (viewDur / duration) * 100) + '%';
+  scrollThumb.style.left  = (viewStart / duration) * 100 + '%';
+}
+
+let scrollDragX = 0, scrollDragVS = 0, scrollDragging = false;
+scrollThumb.addEventListener('mousedown', e => {
+  if (!audioBuffer || zoomLevel <= 1) return;
+  scrollDragging = true; scrollDragX = e.clientX; scrollDragVS = viewStart;
+  scrollThumb.classList.add('dragging'); e.stopPropagation(); e.preventDefault();
+});
+document.addEventListener('mousemove', e => {
+  if (!scrollDragging) return;
+  const trackW  = scrollTrack.getBoundingClientRect().width;
+  const viewDur = duration / zoomLevel;
+  viewStart = Math.max(0, Math.min(duration - viewDur, scrollDragVS + (e.clientX - scrollDragX) / trackW * duration));
+  updateScrollThumb(); redrawAll(getCurrentTime());
+});
+document.addEventListener('mouseup', () => { scrollDragging = false; scrollThumb.classList.remove('dragging'); });
+scrollTrack.addEventListener('click', e => {
+  if (!audioBuffer || zoomLevel <= 1 || e.target === scrollThumb) return;
+  const rect    = scrollTrack.getBoundingClientRect();
+  const frac    = (e.clientX - rect.left) / rect.width;
+  const viewDur = duration / zoomLevel;
+  viewStart = Math.max(0, Math.min(duration - viewDur, frac * duration - viewDur / 2));
+  updateScrollThumb(); redrawAll(getCurrentTime());
+});
+
+// ══════════════════════════════════════════════
+//  统一重绘
+// ══════════════════════════════════════════════
+function redrawAll(ct) {
+  drawWaveform(ct); drawTimeline(); renderMarkerLines(); updatePlayhead(ct);
+}
+
+// ══════════════════════════════════════════════
+//  播放控制
+// ══════════════════════════════════════════════
+playBtn.addEventListener('click', togglePlay);
+
+function togglePlay() {
+  if (!audioBuffer) return;
+  // 若有片段正在播放，先清理片段状态
+  if (segPlayState) { clearTimeout(segPlayState.stopTimer); segPlayState = null; updateSegUI(); renderMarkerLines(); }
+  isPlaying ? pause() : play(startOffset);
+}
+
+function play(offset) {
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  if (sourceNode) sourceNode.disconnect();
+  sourceNode = audioCtx.createBufferSource();
+  sourceNode.buffer = audioBuffer;
+  sourceNode.playbackRate.value = parseFloat(rateSlider.value);
+  const gain = audioCtx.createGain();
+  gain.gain.value = parseFloat(volumeSlider.value);
+  sourceNode.connect(gain).connect(audioCtx.destination);
+  startOffset = offset; startTime = audioCtx.currentTime;
+  sourceNode.start(0, offset);
+  isPlaying = true; setPlayIcon(true);
+  sourceNode.onended = () => {
+    if (isPlaying) { isPlaying = false; startOffset = 0; setPlayIcon(false); cancelAnimationFrame(animFrame); updatePlayhead(0); drawWaveform(0); updateProgressBar(0); syncTimecodeDisplay(0); }
+  };
+  scheduleFrame();
+}
+
+function pause() {
+  if (!isPlaying) return;
+  startOffset = getCurrentTime();
+  sourceNode.stop(); isPlaying = false; setPlayIcon(false); cancelAnimationFrame(animFrame);
+}
+
+function stopPlayback() {
+  if (sourceNode) { try { sourceNode.stop(); } catch(e){} }
+  isPlaying = false; startOffset = 0; setPlayIcon(false); cancelAnimationFrame(animFrame); updatePlayhead(0);
+}
+
+function getCurrentTime() {
+  if (!isPlaying) return startOffset;
+  return Math.min(duration, startOffset + (audioCtx.currentTime - startTime) * parseFloat(rateSlider.value));
+}
+
+function setPlayIcon(p) {
+  playIcon.innerHTML = p
+    ? '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>'
+    : '<polygon points="5,3 19,12 5,21"/>';
+}
+
+function scheduleFrame() {
+  animFrame = requestAnimationFrame(() => {
+    if (!isPlaying) return;
+    const ct = getCurrentTime();
+    if (ct >= duration) { isPlaying = false; startOffset = 0; setPlayIcon(false); updatePlayhead(0); drawWaveform(0); updateProgressBar(0); return; }
+    autoFollow(ct); updatePlayhead(ct); drawWaveform(ct);
+    timeDisplay.textContent = fmtTime(ct) + ' / ' + fmtTime(duration);
+    updateProgressBar(ct); syncTimecodeDisplay(ct); scheduleFrame();
+  });
+}
+
+function autoFollow(ct) {
+  const viewDur = duration / zoomLevel;
+  const margin  = viewDur * 0.1;
+  if (ct < viewStart + margin && ct > margin) { viewStart = Math.max(0, ct - margin); drawTimeline(); updateScrollThumb(); }
+  else if (ct > viewStart + viewDur - margin) { viewStart = Math.min(duration - viewDur, ct - viewDur + margin); drawTimeline(); updateScrollThumb(); }
+}
+
+function seekTo(t) {
+  t = Math.max(0, Math.min(duration, t));
+  startOffset = t;
+  if (isPlaying) { pause(); play(startOffset); }
+  else { updatePlayhead(t); drawWaveform(t); updateProgressBar(t); }
+  syncTimecodeDisplay(t);
+}
+
+function updatePlayhead(ct) {
+  const w       = wrapEl.clientWidth;
+  const viewDur = duration / zoomLevel;
+  playheadEl.style.left = (viewDur > 0 ? ((ct - viewStart) / viewDur) * w : 0) + 'px';
+  if (!isPlaying) { timeDisplay.textContent = fmtTime(ct) + ' / ' + fmtTime(duration); updateProgressBar(ct); syncTimecodeDisplay(ct); }
+}
+
+// ══════════════════════════════════════════════
+//  音量 / 速度
+// ══════════════════════════════════════════════
+volumeSlider.addEventListener('input', () => { if (isPlaying) { const t = getCurrentTime(); pause(); play(t); } });
+rateSlider.addEventListener('input', () => {
+  rateDisplay.textContent = parseFloat(rateSlider.value).toFixed(2) + '×';
+  if (isPlaying) { const t = getCurrentTime(); pause(); play(t); }
+});
+
+// ══════════════════════════════════════════════
+//  点击波形跳转
+// ══════════════════════════════════════════════
+wrapEl.addEventListener('click', e => {
+  if (!audioBuffer) return;
+  const rect    = wrapEl.getBoundingClientRect();
+  const viewDur = duration / zoomLevel;
+  seekTo(viewStart + (e.clientX - rect.left) / rect.width * viewDur);
+});
+wrapEl.addEventListener('mousemove', e => {
+  if (!audioBuffer) return;
+  const rect    = wrapEl.getBoundingClientRect();
+  const viewDur = duration / zoomLevel;
+  const t       = viewStart + (e.clientX - rect.left) / rect.width * viewDur;
+  tooltipEl.style.display = 'block';
+  tooltipEl.style.left = (e.clientX + 12) + 'px';
+  tooltipEl.style.top  = (e.clientY - 28) + 'px';
+  tooltipEl.textContent = fmtTime(t);
+});
+wrapEl.addEventListener('mouseleave', () => { tooltipEl.style.display = 'none'; });
+
+// ══════════════════════════════════════════════
+//  标记管理
+// ══════════════════════════════════════════════
+addStartBtn.addEventListener('click', () => addMarker('start'));
+addEndBtn.addEventListener('click',   () => addMarker('end'));
+
+document.addEventListener('keydown', e => {
+  if (!audioBuffer) return;
+  if (e.target.tagName === 'INPUT') return;
+  if (e.key === 's' || e.key === 'S') addMarker('start');
+  if (e.key === 'e' || e.key === 'E') addMarker('end');
+  if (e.key === ' ') { e.preventDefault(); togglePlay(); }
+});
+
+function addMarker(type) {
+  if (!audioBuffer) return;
+  markers.push({ type, time: getCurrentTime(), name: '' });
+  renderAll();
+}
+
+clearBtn.addEventListener('click', () => {
+  if (!markers.length) return;
+  if (confirm('确认清空所有标记点？')) { markers = []; renderAll(); }
+});
+
+function deleteMarker(idx) { markers.splice(idx, 1); renderAll(); }
+
+// 渲染所有（重新计算配对，更新标记线、列表、切片）
+function renderAll() {
+  computePairsAndValidate();
+  renderMarkerLines();
+  renderMarkerList();
+  renderSegmentList();
+  clearBtn.disabled = markers.length === 0;
+}
+
+// 只渲染波形上的标记线和片段交互区（高频调用安全）
+function renderMarkerLines() {
+  document.querySelectorAll('.marker-line, .seg-region').forEach(el => el.remove());
+  if (!audioBuffer) return;
+  const viewDur = duration / zoomLevel;
+  const wrapW   = wrapEl.clientWidth;
+
+  // ── 片段交互层（放在标记线之前，z-index 较低）──
+  validPairs.forEach((p, pIdx) => {
+    const x1Pct = Math.max(0, ((p.start - viewStart) / viewDur) * 100);
+    const x2Pct = Math.min(100, ((p.end   - viewStart) / viewDur) * 100);
+    if (x2Pct <= 0 || x1Pct >= 100) return;
+
+    const region = document.createElement('div');
+    region.className = 'seg-region' + (segPlayState && segPlayState.pairIdx === pIdx ? ' playing-region' : '');
+    region.style.left  = x1Pct + '%';
+    region.style.width = (x2Pct - x1Pct) + '%';
+    region.title = segPlayState && segPlayState.pairIdx === pIdx ? '点击停止片段播放' : '点击播放此片段';
+
+    region.addEventListener('click', ev => {
+      ev.stopPropagation(); // 不触发波形的全局跳转
+      if (segPlayState && segPlayState.pairIdx === pIdx) {
+        // 再次点击：停止片段播放
+        stopSegPlay();
+      } else {
+        playSegment(pIdx);
+      }
+    });
+    // 插入到 playhead 前面（让 playhead 始终在最上层）
+    wrapEl.insertBefore(region, playheadEl);
+  });
+
+  // ── 标记线 ──
+  markers.forEach((m, i) => {
+    const relT = m.time - viewStart;
+    if (relT < -2 || relT > viewDur + 2) return;
+    const line  = document.createElement('div');
+    line.className = 'marker-line type-' + m.type;
+    line.style.left = Math.max(0, Math.min(100, (relT / viewDur) * 100)) + '%';
+    const lbl = document.createElement('div');
+    lbl.className = 'marker-label';
+    lbl.textContent = (m.name || (m.type === 'start' ? '▶' : '■')) + ' ' + fmtTime(m.time);
+    line.appendChild(lbl);
+    line.title = '点击删除此标记';
+    line.addEventListener('click', ev => { ev.stopPropagation(); deleteMarker(i); });
+    wrapEl.appendChild(line);
+  });
+}
+
+function renderMarkerList() {
+  markerListEl.innerHTML = '';
+  if (markers.length === 0) {
+    markerListEl.innerHTML = '<div style="color:#555;font-size:13px;padding:8px 0">按 <b style="color:#6ee7b7">S</b> 添加开始标记，按 <b style="color:#fca5a5">E</b> 添加结束标记</div>';
+    return;
+  }
+
+  // 按时间顺序显示，并标注配对状态
+  const sorted = [...markers].map((m, origIdx) => ({ ...m, origIdx })).sort((a, b) => a.time - b.time);
+
+  // 检测哪些标记有错误
+  const errorSet = new Set();
+  let pStart = null;
+  for (const m of sorted) {
+    if (m.type === 'start') {
+      if (pStart !== null) errorSet.add(pStart.origIdx);
+      pStart = m;
+    } else {
+      if (pStart === null) errorSet.add(m.origIdx);
+      else pStart = null;
+    }
+  }
+  if (pStart !== null) errorSet.add(pStart.origIdx);
+
+  sorted.forEach(m => {
+    const i    = m.origIdx;
+    const item = document.createElement('div');
+    item.className = 'marker-item type-' + m.type + (errorSet.has(i) ? ' error' : '');
+
+    const badgeClass = errorSet.has(i) ? 'badge-error' : (m.type === 'start' ? 'badge-start' : 'badge-end');
+    const badgeText  = errorSet.has(i) ? '⚠ 未配对' : (m.type === 'start' ? '▶ 开始' : '■ 结束');
+
+    item.innerHTML = `
+      <span class="marker-badge ${badgeClass}">${badgeText}</span>
+      <input class="marker-time-input" type="text" value="${fmtTime(m.time)}" spellcheck="false">
+      <button class="marker-update-btn" title="更新为当前时间">↺</button>
+      <input class="marker-name-input" type="text" placeholder="备注" value="${m.name}">
+      <button class="marker-jump" title="跳转">⏎</button>
+      <button class="marker-del" title="删除">×</button>
+    `;
+    // 时间码编辑：回车或失焦时解析并更新标记时间
+    const timeInput = item.querySelector('.marker-time-input');
+    timeInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { applyMarkerTime(i, timeInput); timeInput.blur(); }
+      if (e.key === 'Escape') { timeInput.value = fmtTime(markers[i].time); timeInput.blur(); }
+    });
+    timeInput.addEventListener('blur', () => applyMarkerTime(i, timeInput));
+    // 更新按钮：将时间码更新为当前播放时间
+    item.querySelector('.marker-update-btn').addEventListener('click', () => {
+      markers[i].time = getCurrentTime();
+      timeInput.value = fmtTime(markers[i].time);
+      renderAll();
+    });
+    item.querySelector('.marker-name-input').addEventListener('input', ev => {
+      markers[i].name = ev.target.value;
+      renderMarkerLines(); // 更新标记线标签
+    });
+    item.querySelector('.marker-jump').addEventListener('click', () => {
+      const viewDurNow = duration / zoomLevel;
+      if (m.time < viewStart || m.time > viewStart + viewDurNow) {
+        viewStart = Math.max(0, Math.min(duration - viewDurNow, m.time - viewDurNow / 2));
+        updateScrollThumb();
+      }
+      seekTo(m.time); redrawAll(m.time);
+    });
+    item.querySelector('.marker-del').addEventListener('click', () => deleteMarker(i));
+    markerListEl.appendChild(item);
+  });
+}
+
+function applyMarkerTime(markerIdx, inputEl) {
+  const newTime = parseTimecode(inputEl.value);
+  if (isNaN(newTime) || newTime < 0 || newTime > duration) {
+    inputEl.style.borderColor = '#ef4444';
+    return;
+  }
+  if (Math.abs(newTime - markers[markerIdx].time) < 0.01) return; // 无变化
+  inputEl.style.borderColor = '';
+  markers[markerIdx].time = newTime;
+  // 轻量刷新：重算配对、重绘波形标记线，但不重建列表（避免 input 失焦）
+  computePairsAndValidate();
+  renderMarkerLines();
+  renderSegmentList();
+  clearBtn.disabled = markers.length === 0;
+}
+
+// ══════════════════════════════════════════════
+//  片段播放（独立于全局播放）
+// ══════════════════════════════════════════════
+function playSegment(pairIdx) {
+  const p = validPairs[pairIdx];
+  if (!p) return;
+
+  // 停掉之前的片段（若有）
+  stopSegPlay(false);
+
+  // 若正在全局播放，先暂停并记录状态，片段结束后恢复
+  const wasPlaying    = isPlaying;
+  const resumeOffset  = wasPlaying ? getCurrentTime() : null;
+  if (wasPlaying) pause();
+
+  // 播放片段
+  play(p.start);
+  const segDur  = p.end - p.start;
+  const elapsed = segDur / parseFloat(rateSlider.value);
+
+  const timer = setTimeout(() => {
+    if (isPlaying) pause();
+    segPlayState = null;
+    // 恢复之前的全局播放（若需要）
+    if (wasPlaying && resumeOffset !== null) play(resumeOffset);
+    updateSegUI();
+    renderMarkerLines();
+  }, elapsed * 1000);
+
+  segPlayState = { pairIdx, endTime: p.end, stopTimer: timer };
+  updateSegUI();
+  renderMarkerLines();
+}
+
+function stopSegPlay(redraw = true) {
+  if (!segPlayState) return;
+  clearTimeout(segPlayState.stopTimer);
+  segPlayState = null;
+  if (isPlaying) pause();
+  if (redraw) { updateSegUI(); renderMarkerLines(); }
+}
+
+// 更新切片列表的播放按钮和卡片高亮状态
+function updateSegUI() {
+  document.querySelectorAll('.seg-card').forEach((card, idx) => {
+    const isActive = segPlayState && segPlayState.pairIdx === idx;
+    card.classList.toggle('playing', isActive);
+    const btn = card.querySelector('.seg-play-btn');
+    if (btn) {
+      btn.textContent = isActive ? '◼ 停止' : '▶ 播放';
+      btn.classList.toggle('stop', isActive);
+    }
+  });
+}
+
+function renderSegmentList() {
+  segmentListEl.innerHTML = '';
+  if (validPairs.length === 0) {
+    segmentListEl.innerHTML = '<div class="seg-empty">无有效切片。<br>每组"开始+结束"标记形成一段切片。</div>';
+    return;
+  }
+  validPairs.forEach((p, idx) => {
+    const isActive = segPlayState && segPlayState.pairIdx === idx;
+    const card = document.createElement('div');
+    card.className = 'seg-card' + (isActive ? ' playing' : '');
+
+    // 名称：优先用 startName，其次 endName，最后默认
+    const defaultName = '切片 ' + (idx + 1);
+    const nameVal = p.startName || p.endName || defaultName;
+
+    card.innerHTML = `
+      <div class="seg-card-header">
+        <span class="seg-card-idx">#${idx + 1}</span>
+        <input class="seg-card-name" type="text" value="${nameVal}" placeholder="${defaultName}" spellcheck="false">
+        <button class="seg-play-btn${isActive ? ' stop' : ''}">${isActive ? '◼ 停止' : '▶ 播放'}</button>
+      </div>
+      <div class="seg-card-range">
+        <input class="seg-time-input seg-start-input" type="text" value="${fmtTime(p.start)}" spellcheck="false">
+        <button class="seg-update-btn seg-update-start" title="开始 → 当前时间">↺</button>
+        <span style="color:#555">→</span>
+        <input class="seg-time-input seg-end-input" type="text" value="${fmtTime(p.end)}" spellcheck="false">
+        <button class="seg-update-btn seg-update-end" title="结束 → 当前时间">↺</button>
+      </div>
+      <div class="seg-card-dur">时长 ${fmt_dur(p.end - p.start)}</div>
+    `;
+
+    // 开始/结束时间编辑
+    const startInput = card.querySelector('.seg-start-input');
+    const endInput   = card.querySelector('.seg-end-input');
+    const durEl      = card.querySelector('.seg-card-dur');
+
+    function applySegTime(inputEl, origIdx, isStart) {
+      const t = parseTimecode(inputEl.value);
+      if (isNaN(t) || t < 0 || t > duration) {
+        inputEl.style.borderColor = '#ef4444';
+        return;
+      }
+      inputEl.style.borderColor = '';
+      markers[origIdx].time = t;
+      // 轻量刷新
+      computePairsAndValidate();
+      renderMarkerLines();
+      renderSegmentList();
+    }
+    function onSegTimeKeydown(e, inputEl, origIdx, isStart) {
+      if (e.key === 'Enter') { applySegTime(inputEl, origIdx, isStart); }
+      if (e.key === 'Escape') { inputEl.value = fmtTime(markers[origIdx].time); inputEl.blur(); }
+      e.stopPropagation(); // 防止冒泡到全局快捷键
+    }
+    startInput.addEventListener('keydown', e => onSegTimeKeydown(e, startInput, p.startOrigIdx, true));
+    startInput.addEventListener('blur', () => applySegTime(startInput, p.startOrigIdx, true));
+    endInput.addEventListener('keydown', e => onSegTimeKeydown(e, endInput, p.endOrigIdx, false));
+    endInput.addEventListener('blur', () => applySegTime(endInput, p.endOrigIdx, false));
+
+    // 更新按钮
+    card.querySelector('.seg-update-start').addEventListener('click', () => {
+      markers[p.startOrigIdx].time = getCurrentTime();
+      renderAll();
+    });
+    card.querySelector('.seg-update-end').addEventListener('click', () => {
+      markers[p.endOrigIdx].time = getCurrentTime();
+      renderAll();
+    });
+
+    // 名称编辑：同步回对应的开始标记 name
+    const nameInput = card.querySelector('.seg-card-name');
+    nameInput.addEventListener('input', () => {
+      // 找到对应的开始标记，更新其 name
+      const sorted = [...markers].map((m, i) => ({ ...m, origIdx: i })).sort((a, b) => a.time - b.time);
+      let pairCount = -1;
+      for (const m of sorted) {
+        if (m.type === 'start') { pairCount++; }
+        if (pairCount === idx && m.type === 'start') {
+          markers[m.origIdx].name = nameInput.value;
+          renderMarkerLines(); // 同步标记线标签
+          break;
+        }
+      }
+    });
+    // 阻止回车提交（防止页面刷新）
+    nameInput.addEventListener('keydown', e => { if (e.key === 'Enter') nameInput.blur(); });
+
+    // 播放/停止按钮
+    card.querySelector('.seg-play-btn').addEventListener('click', () => {
+      if (segPlayState && segPlayState.pairIdx === idx) {
+        stopSegPlay();
+      } else {
+        playSegment(idx);
+      }
+    });
+
+    segmentListEl.appendChild(card);
+  });
+}
+
+// ══════════════════════════════════════════════
+//  导出切片（ZIP 打包，避免浏览器连续下载拦截）
+// ══════════════════════════════════════════════
+exportBtn.addEventListener('click', async () => {
+  if (!audioBuffer || validPairs.length === 0) return;
+  loadingText.textContent = `正在导出切片... (0/${validPairs.length})`;
+  loadingEl.classList.add('active');
+  await new Promise(r => setTimeout(r, 50));
+
+  try {
+    const sr    = audioBuffer.sampleRate;
+    const numCh = audioBuffer.numberOfChannels;
+    const zip   = new MiniZip();
+    const rawBaseExt = sourceAudioExt || inferExtFromFile(fileNameEl.textContent, sourceAudioMime);
+    const wantedMime = sourceAudioMime || mimeFromExt(rawBaseExt) || '';
+    let usedFallback = false;
+
+    for (let i = 0; i < validPairs.length; i++) {
+      loadingText.textContent = `正在导出切片... (${i + 1}/${validPairs.length})`;
+      const { start, end, startName, endName } = validPairs[i];
+      const segBuf = buildSegmentBuffer(start, end, sr, numCh);
+      if (!segBuf) continue;
+
+      const fallbackName = '切片_' + String(i + 1).padStart(2, '0');
+      const name = sanitizeFilename(startName || endName || fallbackName);
+      const encoded = await encodeSegmentToOriginalFormat(segBuf, wantedMime, rawBaseExt);
+      if (encoded.fallback) usedFallback = true;
+      await zip.add(name + '.' + encoded.ext, encoded.blob);
+      // 让 UI 有机会刷新，避免长任务看起来“卡住”
+      await new Promise(r => setTimeout(r, 0));
+    }
+
+    const blob = await zip.blob();
+    const raw = fileNameEl.textContent;
+    const baseName = raw === '未选择文件' ? 'slices' : raw.replace(/\.[^/.]+$/, '');
+    const saveResult = await saveBlobWithPicker(
+      blob,
+      baseName + '_切片.zip',
+      [{ description: 'ZIP 压缩包', accept: { 'application/zip': ['.zip'] } }]
+    );
+    if (saveResult.canceled) return;
+    if (!saveResult.viaPicker && !hasShownSavePathHint) {
+      hasShownSavePathHint = true;
+      alert('当前浏览器不支持手动选择导出路径，已使用默认下载目录。可在浏览器设置开启“下载前询问保存位置”。');
+    }
+    if (usedFallback) {
+      console.info('已使用快速导出并回退为 WAV。');
+    }
+  } catch (err) { alert('导出失败：' + err.message); }
+  loadingText.textContent = '正在解码音频...';
+  loadingEl.classList.remove('active');
+});
+
+function buildSegmentBuffer(start, end, sampleRate, numChannels) {
+  const startSample = Math.floor(start * sampleRate);
+  const endSample   = Math.floor(end * sampleRate);
+  const len = endSample - startSample;
+  if (len <= 0) return null;
+  const segBuf = new AudioBuffer({ numberOfChannels: numChannels, length: len, sampleRate });
+  for (let c = 0; c < numChannels; c++) {
+    segBuf.copyToChannel(audioBuffer.getChannelData(c).slice(startSample, endSample), c);
+  }
+  return segBuf;
+}
+
+async function encodeSegmentToOriginalFormat(segBuf, wantedMime, sourceExt) {
+  const fallback = () => ({ blob: bufferToWav(segBuf), ext: 'wav', fallback: true });
+  const wavLike = sourceExt === 'wav' || sourceExt === 'wave' || /audio\/(?:x-)?wav/.test(wantedMime || '');
+  if (wavLike) return { blob: bufferToWav(segBuf), ext: 'wav', fallback: false };
+  if (typeof MediaRecorder === 'undefined' || typeof AudioContext === 'undefined') return fallback();
+  // 非 WAV 的“原格式导出”通常依赖实时录制编码，切片多时会非常慢甚至看起来卡死。
+  // 默认关闭该慢速模式，优先保证可用性和导出速度。
+  if (!ENABLE_SLOW_ORIGINAL_ENCODING) return fallback();
+
+  const candidates = getRecordableMimeCandidates(wantedMime, sourceExt);
+  if (candidates.length === 0) return fallback();
+
+  for (const mime of candidates) {
+    if (!isMimeRecordable(mime)) continue;
+    let recCtx = null;
+    try {
+      recCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const dest   = recCtx.createMediaStreamDestination();
+      const src    = recCtx.createBufferSource();
+      src.buffer = segBuf;
+      src.connect(dest);
+
+      const recorder = new MediaRecorder(dest.stream, { mimeType: mime });
+      const chunks = [];
+      const blob = await new Promise((resolve, reject) => {
+        recorder.ondataavailable = e => {
+          if (e.data && e.data.size > 0) chunks.push(e.data);
+        };
+        recorder.onerror = e => reject(e.error || new Error('媒体编码失败'));
+        recorder.onstop = () => {
+          const actualMime = recorder.mimeType || mime;
+          resolve(new Blob(chunks, { type: actualMime }));
+        };
+        src.onended = () => {
+          // 给编码器一点收尾时间，再停止录制
+          setTimeout(() => {
+            if (recorder.state !== 'inactive') recorder.stop();
+          }, 40);
+        };
+        recorder.start();
+        src.start(0);
+      });
+
+      await recCtx.close();
+      const ext = mimeToExt(blob.type) || mimeToExt(mime) || sourceExt || 'wav';
+      return { blob, ext, fallback: false };
+    } catch (_) {
+      // 尝试下一个候选格式
+    } finally {
+      if (recCtx && recCtx.state !== 'closed') {
+        try { await recCtx.close(); } catch (_) {}
+      }
+    }
+  }
+
+  return fallback();
+}
+
+function getRecordableMimeCandidates(wantedMime, sourceExt) {
+  const out = [];
+  const add = (v) => { if (v && !out.includes(v)) out.push(v); };
+  add(wantedMime || '');
+  if (sourceExt === 'm4a' || sourceExt === 'mp4' || /mp4|m4a|aac/.test(wantedMime || '')) add('audio/mp4');
+  if (sourceExt === 'mp3' || /mpeg|mp3/.test(wantedMime || '')) add('audio/mpeg');
+  if (sourceExt === 'ogg' || /ogg/.test(wantedMime || '')) add('audio/ogg;codecs=opus');
+  if (sourceExt === 'webm' || /webm/.test(wantedMime || '')) add('audio/webm;codecs=opus');
+  add('audio/webm;codecs=opus');
+  add('audio/mp4');
+  return out;
+}
+
+function isMimeRecordable(mime) {
+  try {
+    return !!mime && MediaRecorder.isTypeSupported(mime);
+  } catch (_) {
+    return false;
+  }
+}
+
+function mimeToExt(mime) {
+  const m = (mime || '').toLowerCase();
+  if (!m) return '';
+  if (m.includes('audio/mpeg') || m.includes('audio/mp3')) return 'mp3';
+  if (m.includes('audio/mp4') || m.includes('audio/m4a') || m.includes('mp4a')) return 'm4a';
+  if (m.includes('audio/wav')) return 'wav';
+  if (m.includes('audio/ogg')) return 'ogg';
+  if (m.includes('audio/webm')) return 'webm';
+  if (m.includes('audio/flac') || m.includes('audio/x-flac')) return 'flac';
+  const short = m.split('/')[1] || '';
+  return short.split(';')[0] || '';
+}
+
+function mimeFromExt(ext) {
+  switch ((ext || '').toLowerCase()) {
+    case 'mp3': return 'audio/mpeg';
+    case 'wav':
+    case 'wave': return 'audio/wav';
+    case 'm4a': return 'audio/mp4';
+    case 'mp4': return 'audio/mp4';
+    case 'ogg': return 'audio/ogg';
+    case 'webm': return 'audio/webm';
+    case 'flac': return 'audio/flac';
+    case 'aac': return 'audio/aac';
+    default: return '';
+  }
+}
+
+function inferExtFromFile(filename, mime) {
+  const m = (filename || '').match(/\.([^.]+)$/);
+  if (m && m[1]) return m[1].toLowerCase();
+  return mimeToExt(mime) || 'wav';
+}
+
+function sanitizeFilename(name) {
+  return String(name || '')
+    .trim()
+    .replace(/[\\/:*?"<>|]+/g, '_')
+    .replace(/\s+/g, ' ')
+    .slice(0, 120) || '切片';
+}
+
+// ══════════════════════════════════════════════
+//  ZIP / Excel 库 (内联)
+// ══════════════════════════════════════════════
+class MiniZip {
+  constructor() {
+    this.files = [];
+    this.crcTab = (() => {
+      const t = [];
+      for (let c = 0; c < 256; c++) {
+        let n = c;
+        for (let k = 0; k < 8; k++) n = n & 1 ? 0xEDB88320 ^ (n >>> 1) : n >>> 1;
+        t[c] = n >>> 0;
+      }
+      return t;
+    })();
+  }
+
+  _crc(data) {
+    let crc = 0xFFFFFFFF;
+    for (let i = 0; i < data.length; i++) {
+      crc = this.crcTab[(crc ^ data[i]) & 0xFF] ^ (crc >>> 8);
+    }
+    return (crc ^ 0xFFFFFFFF) >>> 0;
+  }
+
+  async add(name, dataOrBlob) {
+    let u8 = null;
+    if (dataOrBlob instanceof Blob) {
+      u8 = new Uint8Array(await dataOrBlob.arrayBuffer());
+    } else if (dataOrBlob instanceof Uint8Array) {
+      u8 = dataOrBlob;
+    } else {
+      u8 = new Uint8Array(dataOrBlob);
+    }
+    this.files.push({ name, data: u8, crc: this._crc(u8) });
+  }
+
+  async blob() {
+    const enc = new TextEncoder();
+    const localParts = [];
+    const centralParts = [];
+    let localOffset = 0;
+
+    for (const f of this.files) {
+      const nameBytes = enc.encode(f.name);
+      const data = f.data;
+
+      const local = new Uint8Array(30 + nameBytes.length + data.length);
+      const lv = new DataView(local.buffer);
+      lv.setUint32(0, 0x04034b50, true);
+      lv.setUint16(4, 20, true);
+      lv.setUint16(6, 0, true);
+      lv.setUint16(8, 0, true);
+      lv.setUint16(10, 0, true);
+      lv.setUint16(12, 0, true);
+      lv.setUint32(14, f.crc, true);
+      lv.setUint32(18, data.length, true);
+      lv.setUint32(22, data.length, true);
+      lv.setUint16(26, nameBytes.length, true);
+      lv.setUint16(28, 0, true);
+      local.set(nameBytes, 30);
+      local.set(data, 30 + nameBytes.length);
+      localParts.push(local);
+
+      const central = new Uint8Array(46 + nameBytes.length);
+      const cv = new DataView(central.buffer);
+      cv.setUint32(0, 0x02014b50, true);
+      cv.setUint16(4, 20, true);
+      cv.setUint16(6, 20, true);
+      cv.setUint16(8, 0, true);
+      cv.setUint16(10, 0, true);
+      cv.setUint16(12, 0, true);
+      cv.setUint16(14, 0, true);
+      cv.setUint32(16, f.crc, true);
+      cv.setUint32(20, data.length, true);
+      cv.setUint32(24, data.length, true);
+      cv.setUint16(28, nameBytes.length, true);
+      cv.setUint16(30, 0, true);
+      cv.setUint16(32, 0, true);
+      cv.setUint16(34, 0, true);
+      cv.setUint16(36, 0, true);
+      cv.setUint32(38, 0, true);
+      cv.setUint32(42, localOffset, true);
+      central.set(nameBytes, 46);
+      centralParts.push(central);
+
+      localOffset += local.length;
+    }
+
+    const centralOffset = localOffset;
+    let centralSize = 0;
+    for (const c of centralParts) centralSize += c.length;
+
+    const eocd = new Uint8Array(22);
+    const ev = new DataView(eocd.buffer);
+    ev.setUint32(0, 0x06054b50, true);
+    ev.setUint16(4, 0, true);
+    ev.setUint16(6, 0, true);
+    ev.setUint16(8, this.files.length, true);
+    ev.setUint16(10, this.files.length, true);
+    ev.setUint32(12, centralSize, true);
+    ev.setUint32(16, centralOffset, true);
+    ev.setUint16(20, 0, true);
+
+    return new Blob([...localParts, ...centralParts, eocd], { type: 'application/zip' });
+  }
+}
+
+function xmlEscape(text) {
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+function buildXlsXml(rows) {
+  const wb = '<?xml version="1.0" encoding="UTF-8"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">';
+  let ws = '<Worksheet ss:Name="切片"><Table>';
+  const hdr = ['开始时间', '结束时间', '切片名称'];
+  ws += '<Row>' + hdr.map(h => '<Cell><Data ss:Type="String">' + xmlEscape(h) + '</Data></Cell>').join('') + '</Row>';
+  for (const r of rows) ws += '<Row>' + r.map(c => '<Cell><Data ss:Type="String">' + xmlEscape(c) + '</Data></Cell>').join('') + '</Row>';
+  ws += '</Table></Worksheet></Workbook>';
+  return wb + ws;
+}
+
+function colNumToName(n) {
+  let s = '';
+  let x = n + 1;
+  while (x > 0) {
+    const rem = (x - 1) % 26;
+    s = String.fromCharCode(65 + rem) + s;
+    x = Math.floor((x - 1) / 26);
+  }
+  return s;
+}
+
+async function buildXlsxBlob(rows) {
+  const headers = ['开始时间', '结束时间', '切片名称'];
+  const allRows = [headers, ...rows];
+  const shared = [];
+  const sharedIdx = new Map();
+
+  function getSharedIndex(value) {
+    const v = String(value ?? '');
+    if (sharedIdx.has(v)) return sharedIdx.get(v);
+    const idx = shared.length;
+    shared.push(v);
+    sharedIdx.set(v, idx);
+    return idx;
+  }
+
+  const sheetRowsXml = allRows.map((row, rowIdx) => {
+    const r = rowIdx + 1;
+    const cells = row.map((cell, colIdx) => {
+      const ref = colNumToName(colIdx) + r;
+      const idx = getSharedIndex(cell);
+      return `<c r="${ref}" t="s"><v>${idx}</v></c>`;
+    }).join('');
+    return `<row r="${r}">${cells}</row>`;
+  }).join('');
+
+  const sheetXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <sheetData>${sheetRowsXml}</sheetData>
+</worksheet>`;
+
+  const sharedStringsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="${shared.length}" uniqueCount="${shared.length}">
+  ${shared.map(v => `<si><t>${xmlEscape(v)}</t></si>`).join('')}
+</sst>`;
+
+  const workbookXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheets>
+    <sheet name="切片" sheetId="1" r:id="rId1"/>
+  </sheets>
+</workbook>`;
+
+  const workbookRelsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+  <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/>
+</Relationships>`;
+
+  const rootRelsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>`;
+
+  const contentTypesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+  <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+  <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+  <Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/>
+</Types>`;
+
+  const stylesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <fonts count="1">
+    <font><sz val="11"/><name val="Calibri"/></font>
+  </fonts>
+  <fills count="2">
+    <fill><patternFill patternType="none"/></fill>
+    <fill><patternFill patternType="gray125"/></fill>
+  </fills>
+  <borders count="1">
+    <border><left/><right/><top/><bottom/><diagonal/></border>
+  </borders>
+  <cellStyleXfs count="1">
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="0"/>
+  </cellStyleXfs>
+  <cellXfs count="1">
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
+  </cellXfs>
+  <cellStyles count="1">
+    <cellStyle name="Normal" xfId="0" builtinId="0"/>
+  </cellStyles>
+</styleSheet>`;
+
+  const zip = new MiniZip();
+  await zip.add('[Content_Types].xml', new TextEncoder().encode(contentTypesXml));
+  await zip.add('_rels/.rels', new TextEncoder().encode(rootRelsXml));
+  await zip.add('xl/workbook.xml', new TextEncoder().encode(workbookXml));
+  await zip.add('xl/_rels/workbook.xml.rels', new TextEncoder().encode(workbookRelsXml));
+  await zip.add('xl/styles.xml', new TextEncoder().encode(stylesXml));
+  await zip.add('xl/sharedStrings.xml', new TextEncoder().encode(sharedStringsXml));
+  await zip.add('xl/worksheets/sheet1.xml', new TextEncoder().encode(sheetXml));
+  return await zip.blob();
+}
+
+// ══════════════════════════════════════════════
+//  保存工程
+// ══════════════════════════════════════════════
+exportExcelBtn.addEventListener('click', async () => {
+  if (!audioBuffer || validPairs.length === 0) return;
+  const raw = fileNameEl.textContent;
+  const baseName = raw === '未选择文件' ? 'project' : raw.replace(/\.[^.]+$/, '');
+  const rows = validPairs.map((p, i) => [fmtTime(p.start), fmtTime(p.end), p.startName || p.endName || '切片 ' + (i + 1)]);
+  try {
+    const xlsxBlob = await buildXlsxBlob(rows);
+    downloadBlob(xlsxBlob, baseName + '.xlsx');
+  } catch (err) {
+    // 极端情况下兜底为旧版 xls XML
+    const xlsBlob = new Blob([new TextEncoder().encode(buildXlsXml(rows))], { type: 'application/vnd.ms-excel' });
+    downloadBlob(xlsBlob, baseName + '.xls');
+  }
+});
+
+// ══════════════════════════════════════════════
+//  导入工程（文件夹）
+// ════════════════════════════════════════════
+//  导入 Excel
+// ════════════════════════════════════════════
+document.getElementById('import-excel-label').addEventListener('click', () => excelInput.click());
+
+excelInput.addEventListener('change', async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (!audioBuffer) { alert('请先导入音频文件'); excelInput.value = ''; return; }
+  loadingText.textContent = '正在导入 Excel...'; loadingEl.classList.add('active');
+  try {
+    const rows = await parseSpreadsheetRowsFromFile(file);
+    const newMarkers = [];
+    rows.forEach((cells) => {
+      if (cells.length < 3) return;
+      const tStart = parseImportedTimeValue(cells[0]);
+      const tEnd   = parseImportedTimeValue(cells[1]);
+      const name   = cells[2];
+      if (isNaN(tStart) || isNaN(tEnd) || tEnd <= tStart) return;
+      newMarkers.push({ time: tStart, type: 'start', name: name });
+      newMarkers.push({ time: tEnd,   type: 'end',   name: '' });
+    });
+    if (newMarkers.length === 0) {
+      throw new Error('未读取到有效切片。请导入本工具导出的 .xlsx / .xls / .csv（3列：开始、结束、切片名）');
+    }
+    markers = newMarkers;
+    renderAll();
+    redrawAll(getCurrentTime());
+    updateUI(true);
+    clearBtn.disabled = false;
+  } catch (err) { alert('导入 Excel 失败：' + err.message); }
+  loadingEl.classList.remove('active');
+  excelInput.value = '';
+});
+
+async function parseSpreadsheetRowsFromFile(file) {
+  const ext = ((file.name.match(/\.([^.]+)$/) || [,''])[1] || '').toLowerCase();
+  if (ext === 'xlsx') {
+    const ab = await file.arrayBuffer();
+    return await parseXlsxRowsFromArrayBuffer(ab);
+  }
+  const text = await file.text();
+  return parseLegacyExcelTextRows(text);
+}
+
+function parseImportedTimeValue(raw) {
+  const text = String(raw ?? '').trim();
+  if (!text) return NaN;
+
+  // 常规时间码（MM:SS / HH:MM:SS / 秒）
+  const tc = parseTimecode(text);
+  if (!isNaN(tc)) {
+    // 兜底：若是纯小数且非常小，更可能来自 Excel 的“天分数”
+    if (text.indexOf(':') === -1 && tc > 0 && tc < 1e-2) {
+      return tc * 86400;
+    }
+    return tc;
+  }
+
+  // 支持科学计数法（例如 1.6319444444444443E-4）
+  const n = Number(text);
+  if (!Number.isFinite(n)) return NaN;
+  // Excel 时间数值：一天为 1。音频切片通常是当天内时间，按秒换算
+  if (text.includes('e') || text.includes('E') || (n > 0 && n < 1)) {
+    return n * 86400;
+  }
+  return n;
+}
+
+function parseLegacyExcelTextRows(text) {
+  let rows = null;
+  const lineData = text.split(/\r?\n/).map(l => l.split(/[\t,]/).map(c => c.trim().replace(/^"|"$/g, '')));
+  if (lineData.length > 1 && lineData[0].length >= 3) {
+    const isXml = /<\?xml/i.test(text) || /<Workbook/i.test(text);
+    if (!isXml) rows = lineData;
+  }
+
+  if (!rows) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(text, 'text/xml');
+    const rowEls = doc.getElementsByTagName('Row');
+    rows = [];
+    for (let i = 0; i < rowEls.length; i++) {
+      const cellEls = rowEls[i].getElementsByTagName('Data');
+      const rowData = [];
+      for (let j = 0; j < cellEls.length; j++) rowData.push((cellEls[j].textContent || '').trim());
+      rows.push(rowData);
+    }
+  }
+  return rows;
+}
+
+async function parseXlsxRowsFromArrayBuffer(arrayBuffer) {
+  const entries = await unzipXlsxEntries(arrayBuffer);
+  const workbookXml = readZipEntryText(entries, 'xl/workbook.xml');
+  const workbookRelsXml = readZipEntryText(entries, 'xl/_rels/workbook.xml.rels');
+  const sheetPath = resolveFirstSheetPath(workbookXml, workbookRelsXml);
+  const sheetXml = readZipEntryText(entries, sheetPath);
+  const sharedStringsXml = readZipEntryText(entries, 'xl/sharedStrings.xml', true);
+  const sharedStrings = parseSharedStrings(sharedStringsXml);
+  return parseXlsxSheetRows(sheetXml, sharedStrings);
+}
+
+function readZipEntryText(entryMap, path, optional = false) {
+  const key = normalizeZipPath(path);
+  const bytes = entryMap.get(key);
+  if (!bytes) {
+    if (optional) return '';
+    throw new Error(`XLSX 缺少必要文件：${path}`);
+  }
+  return new TextDecoder('utf-8').decode(bytes);
+}
+
+function normalizeZipPath(path) {
+  return String(path || '').replace(/^\/+/, '').replace(/\\/g, '/');
+}
+
+function resolveFirstSheetPath(workbookXml, workbookRelsXml) {
+  let rid = '';
+  const workbookDoc = new DOMParser().parseFromString(workbookXml, 'application/xml');
+  const sheetEl = workbookDoc.getElementsByTagName('sheet')[0];
+  if (sheetEl) rid = sheetEl.getAttribute('r:id') || sheetEl.getAttribute('id') || '';
+
+  const relsDoc = new DOMParser().parseFromString(workbookRelsXml, 'application/xml');
+  const rels = relsDoc.getElementsByTagName('Relationship');
+  let target = '';
+  for (let i = 0; i < rels.length; i++) {
+    const id = rels[i].getAttribute('Id') || '';
+    if (id === rid || (!rid && /worksheet$/.test(rels[i].getAttribute('Type') || ''))) {
+      target = rels[i].getAttribute('Target') || '';
+      break;
+    }
+  }
+  if (!target) target = 'worksheets/sheet1.xml';
+  if (/^https?:/i.test(target)) throw new Error('XLSX 工作表路径异常');
+  if (!target.startsWith('/')) target = 'xl/' + target.replace(/^\.?\/*/, '');
+  return normalizeZipPath(target);
+}
+
+function parseSharedStrings(xml) {
+  if (!xml) return [];
+  const doc = new DOMParser().parseFromString(xml, 'application/xml');
+  const sis = doc.getElementsByTagName('si');
+  const out = [];
+  for (let i = 0; i < sis.length; i++) {
+    const ts = sis[i].getElementsByTagName('t');
+    let text = '';
+    for (let j = 0; j < ts.length; j++) text += ts[j].textContent || '';
+    out.push(text);
+  }
+  return out;
+}
+
+function colNameToIndex(name) {
+  let idx = 0;
+  for (let i = 0; i < name.length; i++) {
+    const c = name.charCodeAt(i);
+    if (c < 65 || c > 90) continue;
+    idx = idx * 26 + (c - 64);
+  }
+  return Math.max(0, idx - 1);
+}
+
+function parseXlsxSheetRows(sheetXml, sharedStrings) {
+  const doc = new DOMParser().parseFromString(sheetXml, 'application/xml');
+  const rowEls = doc.getElementsByTagName('row');
+  const rows = [];
+  for (let i = 0; i < rowEls.length; i++) {
+    const row = [];
+    const cellEls = rowEls[i].getElementsByTagName('c');
+    let seqCol = 0;
+    for (let j = 0; j < cellEls.length; j++) {
+      const cell = cellEls[j];
+      const ref = (cell.getAttribute('r') || '').toUpperCase();
+      const colLetters = ref.replace(/[0-9]/g, '');
+      const col = colLetters ? colNameToIndex(colLetters) : seqCol;
+      seqCol = col + 1;
+
+      const type = cell.getAttribute('t') || '';
+      let value = '';
+      if (type === 'inlineStr') {
+        const t = cell.getElementsByTagName('t')[0];
+        value = t ? (t.textContent || '') : '';
+      } else {
+        const vEl = cell.getElementsByTagName('v')[0];
+        const raw = vEl ? (vEl.textContent || '') : '';
+        if (type === 's') value = sharedStrings[parseInt(raw, 10)] || '';
+        else value = raw;
+      }
+      row[col] = value;
+    }
+    rows.push(row);
+  }
+  return rows;
+}
+
+async function unzipXlsxEntries(arrayBuffer) {
+  const bytes = new Uint8Array(arrayBuffer);
+  const view = new DataView(arrayBuffer);
+  const eocdOffset = findZipEocdOffset(bytes, view);
+  if (eocdOffset < 0) throw new Error('无效的 XLSX 压缩包');
+
+  const totalEntries = view.getUint16(eocdOffset + 10, true);
+  const cdOffset = view.getUint32(eocdOffset + 16, true);
+  const entries = new Map();
+  const decoder = new TextDecoder('utf-8');
+
+  let ptr = cdOffset;
+  for (let i = 0; i < totalEntries; i++) {
+    if (view.getUint32(ptr, true) !== 0x02014b50) throw new Error('XLSX 目录结构异常');
+
+    const method = view.getUint16(ptr + 10, true);
+    const compSize = view.getUint32(ptr + 20, true);
+    const nameLen = view.getUint16(ptr + 28, true);
+    const extraLen = view.getUint16(ptr + 30, true);
+    const commentLen = view.getUint16(ptr + 32, true);
+    const localOffset = view.getUint32(ptr + 42, true);
+    const name = decoder.decode(bytes.subarray(ptr + 46, ptr + 46 + nameLen));
+
+    ptr += 46 + nameLen + extraLen + commentLen;
+
+    if (view.getUint32(localOffset, true) !== 0x04034b50) throw new Error('XLSX 本地文件头异常');
+    const localNameLen = view.getUint16(localOffset + 26, true);
+    const localExtraLen = view.getUint16(localOffset + 28, true);
+    const dataStart = localOffset + 30 + localNameLen + localExtraLen;
+    const compData = bytes.subarray(dataStart, dataStart + compSize);
+
+    let out = null;
+    if (method === 0) {
+      out = new Uint8Array(compData);
+    } else if (method === 8) {
+      out = await inflateRaw(compData);
+    } else {
+      throw new Error(`不支持的 XLSX 压缩方式：${method}`);
+    }
+
+    entries.set(normalizeZipPath(name), out);
+  }
+
+  return entries;
+}
+
+function findZipEocdOffset(bytes, view) {
+  const min = Math.max(0, bytes.length - 22 - 0xFFFF);
+  for (let i = bytes.length - 22; i >= min; i--) {
+    if (view.getUint32(i, true) === 0x06054b50) return i;
+  }
+  return -1;
+}
+
+async function inflateRaw(data) {
+  if (typeof DecompressionStream === 'undefined') {
+    throw new Error('当前浏览器不支持 .xlsx 解压，请使用 Chrome/Edge 最新版');
+  }
+  const stream = new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+  const ab = await new Response(stream).arrayBuffer();
+  return new Uint8Array(ab);
+}
+
+// ════════════════════════════════════════════
+//  (旧文件夹导入代码已移除)
+// ════════════════════════════════════════════
+
+// ══════════════════════════════════════════════
+//  WAV 编码
+// ══════════════════════════════════════════════
+function bufferToWav(buf) {
+  const nc  = buf.numberOfChannels;
+  const len = buf.length;
+  const sr  = buf.sampleRate;
+  const out = new Int16Array(len * nc);
+  for (let i = 0; i < len; i++)
+    for (let c = 0; c < nc; c++) {
+      const s = Math.max(-1, Math.min(1, buf.getChannelData(c)[i]));
+      out[i * nc + c] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+    }
+  const dataLen = out.byteLength;
+  const ab = new ArrayBuffer(44 + dataLen);
+  const v  = new DataView(ab);
+  const ws = (o, s) => [...s].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+  ws(0,'RIFF'); v.setUint32(4, 36 + dataLen, true); ws(8,'WAVE');
+  ws(12,'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true);
+  v.setUint16(22, nc, true); v.setUint32(24, sr, true);
+  v.setUint32(28, sr * nc * 2, true); v.setUint16(32, nc * 2, true); v.setUint16(34, 16, true);
+  ws(36,'data'); v.setUint32(40, dataLen, true);
+  new Uint8Array(ab).set(new Uint8Array(out.buffer), 44);
+  return new Blob([ab], { type: 'audio/wav' });
+}
+
+function downloadBlob(blob, filename) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = filename; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+
+async function saveBlobWithPicker(blob, suggestedName, types) {
+  const canPick = typeof window.showSaveFilePicker === 'function' && window.isSecureContext;
+  if (canPick) {
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName,
+        types
+      });
+      try {
+        const writable = await handle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+        return { viaPicker: true, canceled: false };
+      } catch (err) {
+        // 某些内嵌浏览器允许选择文件名，但不允许真正写入本地文件系统
+        if (err && err.name === 'AbortError') return { viaPicker: true, canceled: true };
+        downloadBlob(blob, suggestedName);
+        return { viaPicker: false, canceled: false };
+      }
+    } catch (err) {
+      if (err && err.name === 'AbortError') return { viaPicker: true, canceled: true };
+      downloadBlob(blob, suggestedName);
+      return { viaPicker: false, canceled: false };
+    }
+  }
+  downloadBlob(blob, suggestedName);
+  return { viaPicker: false, canceled: false };
+}
+
+// ══════════════════════════════════════════════
+//  UI 状态
+// ══════════════════════════════════════════════
+function updateUI(hasAudio) {
+  playBtn.disabled    = !hasAudio;
+  addStartBtn.disabled = !hasAudio;
+  addEndBtn.disabled   = !hasAudio;
+}
+
+// ══════════════════════════════════════════════
+//  时间格式化
+// ══════════════════════════════════════════════
+function fmtTime(t) {
+  if (isNaN(t) || t < 0) t = 0;
+  const m = Math.floor(t / 60), s = Math.floor(t % 60), ms = Math.floor((t % 1) * 10);
+  return String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0') + '.' + ms;
+}
+function fmt_dur(t) {
+  if (t < 60) return t.toFixed(1) + 's';
+  return Math.floor(t/60) + 'm' + Math.round(t%60) + 's';
+}
+</script>
+
+</body>
+</html>

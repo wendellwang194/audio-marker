@@ -1,0 +1,53 @@
+<svg width="1400" height="760" viewBox="0 0 1400 760" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1400" y2="760" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0f1115"/>
+      <stop offset="1" stop-color="#151922"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#1d232e"/>
+      <stop offset="1" stop-color="#171c24"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1400" height="760" rx="28" fill="url(#bg)"/>
+  <rect x="30" y="30" width="1340" height="700" rx="24" fill="#11151d" stroke="#2c3340"/>
+
+  <text x="90" y="120" fill="#f3f4f6" font-size="54" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif" font-weight="700">音频切片工坊</text>
+  <text x="90" y="164" fill="#9ca3af" font-size="24" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">可视化打点 · 切片命名 · 工程恢复 · 批量导出</text>
+
+  <rect x="90" y="210" width="1220" height="68" rx="14" fill="#1b212b" stroke="#343d4d"/>
+  <rect x="112" y="228" width="120" height="32" rx="8" fill="#2f91ff"/>
+  <text x="144" y="250" fill="#f8fafc" font-size="17" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">导入音频</text>
+  <rect x="246" y="228" width="192" height="32" rx="8" fill="#273244"/>
+  <text x="272" y="250" fill="#d1d5db" font-size="17" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">导入切片工程表</text>
+  <rect x="450" y="228" width="210" height="32" rx="8" fill="#273244"/>
+  <text x="476" y="250" fill="#d1d5db" font-size="17" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">导出切片工程表(.xlsx)</text>
+  <rect x="674" y="228" width="126" height="32" rx="8" fill="#22c55e"/>
+  <text x="708" y="250" fill="#f0fdf4" font-size="17" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">导出切片</text>
+
+  <rect x="90" y="300" width="1220" height="180" rx="14" fill="url(#card)" stroke="#333b49"/>
+  <rect x="130" y="338" width="1140" height="102" rx="10" fill="#0d1118" stroke="#2c3544"/>
+
+  <polyline points="146,390 192,382 238,396 284,360 330,407 376,375 422,391 468,366 514,398 560,372 606,404 652,362 698,385 744,356 790,402 836,374 882,392 928,366 974,398 1020,380 1066,393 1112,371 1158,399 1204,368 1250,390"
+            fill="none" stroke="#54a5ff" stroke-width="3"/>
+
+  <line x1="418" y1="338" x2="418" y2="440" stroke="#22c55e" stroke-width="2"/>
+  <line x1="858" y1="338" x2="858" y2="440" stroke="#ef4444" stroke-width="2"/>
+  <text x="401" y="330" fill="#86efac" font-size="15" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">开始</text>
+  <text x="842" y="330" fill="#fca5a5" font-size="15" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">结束</text>
+
+  <rect x="90" y="506" width="398" height="190" rx="14" fill="#171d27" stroke="#333b49"/>
+  <text x="116" y="540" fill="#e5e7eb" font-size="22" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif" font-weight="600">标记点列表</text>
+  <rect x="116" y="560" width="346" height="40" rx="8" fill="#143226" stroke="#286a52"/>
+  <text x="132" y="586" fill="#d1fae5" font-size="16" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">开始  00:12.3  旁白A</text>
+  <rect x="116" y="610" width="346" height="40" rx="8" fill="#3a1f24" stroke="#6f3843"/>
+  <text x="132" y="636" fill="#fee2e2" font-size="16" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">结束  00:18.9  旁白A</text>
+
+  <rect x="510" y="506" width="800" height="190" rx="14" fill="#171d27" stroke="#333b49"/>
+  <text x="536" y="540" fill="#e5e7eb" font-size="22" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif" font-weight="600">切片列表</text>
+  <rect x="536" y="560" width="748" height="50" rx="8" fill="#1a2433" stroke="#365174"/>
+  <text x="554" y="591" fill="#dbeafe" font-size="17" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">#1  旁白A   00:12.3 → 00:18.9</text>
+  <rect x="536" y="620" width="748" height="50" rx="8" fill="#1f2a34" stroke="#3f5b66"/>
+  <text x="554" y="651" fill="#dcfce7" font-size="17" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">导出：旁白A.wav / 旁白A_02.wav ...</text>
+</svg>

@@ -458,12 +458,332 @@
     min-width: 110px; margin-left: 4px; }
   .ab-spacer { flex: 1; }
   .ab-extra { display: flex; align-items: center; gap: 6px; }
+
+  /* ══ Modern UI Theme Override (shadcn + Ant Design style cues) ══ */
+  :root {
+    --bg: #0a1220;
+    --bg-soft: #0f1a2d;
+    --panel: rgba(18, 28, 46, 0.78);
+    --panel-solid: #111f34;
+    --stroke: #24344f;
+    --stroke-strong: #304768;
+    --text: #e6eefc;
+    --text-muted: #8ea3c2;
+    --text-dim: #6e819e;
+    --primary: #3b82f6;
+    --primary-hover: #2563eb;
+    --primary-soft: rgba(59,130,246,0.2);
+    --success: #10b981;
+    --danger: #ef4444;
+    --warning: #f59e0b;
+    --radius: 12px;
+    --radius-sm: 9px;
+    --shadow-md: 0 10px 30px rgba(1, 8, 20, 0.35);
+    --shadow-sm: 0 2px 8px rgba(2, 8, 24, 0.28);
+  }
+
+  body {
+    background:
+      radial-gradient(1200px 700px at -10% -10%, rgba(56,189,248,0.18), transparent 60%),
+      radial-gradient(1100px 680px at 120% 0%, rgba(59,130,246,0.15), transparent 58%),
+      linear-gradient(180deg, #09101c 0%, var(--bg) 45%, #0a1425 100%);
+    color: var(--text);
+    font-family: "Inter", "SF Pro Text", "Segoe UI", "PingFang SC", "Noto Sans SC", sans-serif;
+    letter-spacing: 0.01em;
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background-image: linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+    background-size: 26px 26px;
+    mask-image: radial-gradient(90% 70% at 50% 10%, #000 40%, transparent 100%);
+    z-index: 0;
+  }
+
+  header,
+  #action-bar,
+  #progress-section,
+  #zoom-section,
+  #controls,
+  #marker-section,
+  #segment-section,
+  #warning-banner,
+  #waveform-wrap {
+    position: relative;
+    z-index: 1;
+  }
+
+  header {
+    background: var(--panel);
+    border-bottom: 1px solid var(--stroke-strong);
+    backdrop-filter: blur(14px);
+    box-shadow: var(--shadow-sm);
+  }
+
+  header h1 {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--text);
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    letter-spacing: 0.02em;
+  }
+
+  .brand-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(145deg, rgba(59,130,246,0.32), rgba(14,165,233,0.2));
+    color: #93c5fd;
+    border: 1px solid rgba(96,165,250,0.45);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.15);
+  }
+  .brand-icon svg { width: 16px; height: 16px; stroke: currentColor; }
+
+  .icon-inline {
+    width: 15px;
+    height: 15px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 1.8;
+    flex-shrink: 0;
+  }
+
+  .btn,
+  #file-label,
+  #import-excel-label {
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--stroke);
+    background: rgba(20,31,52,0.7);
+    color: var(--text);
+    font-weight: 600;
+    backdrop-filter: blur(6px);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  #file-label, #import-excel-label {
+    padding: 7px 13px;
+    font-size: 13px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    color: #d2def0;
+  }
+  #file-label:hover, #import-excel-label:hover { background: rgba(27,41,66,0.85); border-color: var(--stroke-strong); }
+  #file-name { color: var(--text-muted); max-width: 260px; }
+
+  .btn-primary { background: linear-gradient(180deg, #4f95ff 0%, #2f74e3 100%); border-color: rgba(96,165,250,0.8); color: #eef5ff; }
+  .btn-primary:hover { background: linear-gradient(180deg, #5aa0ff 0%, #387de9 100%); }
+  .btn-accent,
+  .btn-export {
+    background: linear-gradient(180deg, rgba(59,130,246,0.28), rgba(59,130,246,0.18));
+    border-color: rgba(96,165,250,0.56);
+    color: #cfe1ff;
+  }
+  .btn-accent:hover,
+  .btn-export:hover { background: linear-gradient(180deg, rgba(59,130,246,0.36), rgba(59,130,246,0.23)); }
+
+  .btn-danger {
+    background: linear-gradient(180deg, rgba(239,68,68,0.22), rgba(220,38,38,0.17));
+    border-color: rgba(248,113,113,0.52);
+    color: #fecaca;
+  }
+  .btn-danger:hover { background: linear-gradient(180deg, rgba(239,68,68,0.31), rgba(220,38,38,0.24)); }
+  .btn:disabled { opacity: 0.42; }
+
+  .btn:focus-visible,
+  #file-label:focus-visible,
+  #import-excel-label:focus-visible,
+  input:focus-visible,
+  button:focus-visible {
+    outline: 2px solid rgba(59,130,246,0.7);
+    outline-offset: 1px;
+  }
+
+  #action-bar,
+  #progress-section,
+  #zoom-section,
+  #controls {
+    background: var(--panel);
+    border: 1px solid var(--stroke);
+    border-radius: var(--radius);
+    backdrop-filter: blur(10px);
+    box-shadow: var(--shadow-sm);
+    padding: 10px 14px;
+  }
+  #action-bar { margin-top: 12px; }
+  #progress-section { margin-top: 10px; }
+  #zoom-section { margin-top: 10px; }
+  #controls { margin-top: 12px; }
+
+  .ab-play,
+  #play-btn {
+    background: linear-gradient(180deg, #4b92ff 0%, #2f73e0 100%);
+    border: 1px solid rgba(147,197,253,0.62);
+    box-shadow: 0 6px 18px rgba(37,99,235,0.35);
+  }
+  .ab-play:hover:not(:disabled),
+  #play-btn:hover:not(:disabled) { background: linear-gradient(180deg, #5ca1ff 0%, #3c7ee7 100%); }
+  #play-btn svg, .ab-play svg { fill: #f4f8ff; }
+
+  .ab-btn-start {
+    background: rgba(16,185,129,0.16);
+    border: 1px solid rgba(16,185,129,0.45);
+    color: #9af3ce;
+  }
+  .ab-btn-end {
+    background: rgba(239,68,68,0.14);
+    border: 1px solid rgba(239,68,68,0.45);
+    color: #fecaca;
+  }
+  .ab-btn .kbd {
+    background: rgba(147,197,253,0.16);
+    color: #bfdbfe;
+    border: 1px solid rgba(96,165,250,0.35);
+  }
+
+  #waveform-wrap {
+    border: 1px solid var(--stroke-strong);
+    border-radius: 14px;
+    box-shadow: var(--shadow-md);
+    background: linear-gradient(180deg, rgba(12,24,42,0.92), rgba(10,19,32,0.95));
+  }
+  #timeline-canvas {
+    background: transparent;
+    margin-top: 2px;
+  }
+  #empty-hint { color: #5f7593; }
+
+  #progress-bg { background: rgba(39,56,84,0.9); }
+  #progress-fill { background: linear-gradient(90deg, #3b82f6 0%, #0ea5e9 100%); }
+  #progress-thumb {
+    background: #dbeafe;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 5px rgba(59,130,246,0.18), 0 0 12px rgba(14,165,233,0.35);
+  }
+
+  #timecode-input {
+    background: rgba(12,22,38,0.86);
+    border: 1px solid var(--stroke);
+    color: #dbeafe;
+  }
+  #timecode-go {
+    background: rgba(26,39,61,0.82);
+    border-color: var(--stroke);
+    color: #bfdbfe;
+  }
+
+  #zoom-section label,
+  .ctrl-group,
+  .ab-extra span { color: var(--text-dim) !important; }
+  #zoom-display, #rate-display, #time-display, .ab-time { color: #c7dbf7; }
+  #zoom-slider, #volume, #playback-rate { accent-color: #3b82f6; }
+  #scroll-track { background: rgba(23,34,55,0.9); }
+  #scroll-thumb { background: #2f4466; }
+  #scroll-thumb:hover, #scroll-thumb.dragging { background: #3f5f8c; }
+
+  #bottom-area {
+    margin: 12px 24px 14px;
+    border: 1px solid var(--stroke);
+    border-radius: 14px;
+    overflow: hidden;
+    background: var(--panel);
+    box-shadow: var(--shadow-md);
+    backdrop-filter: blur(10px);
+  }
+  #marker-section {
+    border-right: 1px solid var(--stroke);
+    padding-right: 16px;
+    padding-top: 16px;
+    padding-bottom: 16px;
+  }
+  #segment-section {
+    padding-top: 16px;
+    padding-bottom: 16px;
+  }
+
+  #marker-section h2,
+  #segment-section h2 {
+    color: var(--text-muted);
+    font-size: 12px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border-bottom-color: rgba(142,163,194,0.24);
+  }
+  #marker-section h2 .icon-inline,
+  #segment-section h2 .icon-inline {
+    width: 14px;
+    height: 14px;
+    color: #8fb2e6;
+  }
+
+  .marker-item.type-start { background: rgba(15,69,57,0.32); border-color: rgba(16,185,129,0.36); }
+  .marker-item.type-end   { background: rgba(92,28,28,0.3); border-color: rgba(239,68,68,0.3); }
+  .marker-time, .seg-card-range { color: #d8e6fa; }
+  .marker-name-input,
+  .marker-time-input,
+  .seg-time-input,
+  .seg-card-name {
+    color: #dbeafe;
+    border-color: rgba(126,150,184,0.38);
+  }
+  .marker-jump, .seg-update-btn, .marker-update-btn { color: #93c5fd; }
+
+  .seg-card {
+    background: rgba(18,37,63,0.62);
+    border-color: rgba(59,130,246,0.34);
+  }
+  .seg-card:hover { border-color: rgba(59,130,246,0.62); }
+  .seg-card-name { color: #bfdbfe; }
+  .seg-card-dur { color: #6ee7b7; }
+  .seg-card-idx { color: #bfdbfe; background: rgba(59,130,246,0.2); }
+
+  #warning-banner {
+    background: rgba(133,77,14,0.28);
+    border-color: rgba(245,158,11,0.52);
+    color: #fde68a;
+  }
+
+  .tooltip,
+  #progress-hover-tip {
+    background: rgba(10,20,34,0.95);
+    border: 1px solid var(--stroke-strong);
+    color: #dbeafe;
+    box-shadow: var(--shadow-sm);
+  }
 </style>
 </head>
 <body>
 
 <header>
-  <h1>🎵 音频标记切分工具</h1>
+  <h1>
+    <span class="brand-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 14v3"></path>
+        <path d="M8 10v8"></path>
+        <path d="M12 6v12"></path>
+        <path d="M16 10v8"></path>
+        <path d="M20 14v3"></path>
+      </svg>
+    </span>
+    音频标记切分工具
+  </h1>
   <label id="file-label" for="file-input">
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -472,15 +792,46 @@
     导入音频
   </label>
   <input type="file" id="file-input" accept="audio/*">
-  <label id="import-excel-label" style="cursor:pointer;font-size:13px;color:#888;display:inline-flex;align-items:center;gap:4px;margin-left:8px;">
-    📊 导入Excel
+  <label id="import-excel-label" style="margin-left:8px;" aria-label="导入Excel">
+    <svg class="icon-inline" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 6h16"></path>
+      <path d="M4 12h16"></path>
+      <path d="M4 18h16"></path>
+      <path d="M9 4v16"></path>
+      <path d="M15 4v16"></path>
+    </svg>
+    导入Excel
   </label>
   <input type="file" id="excel-input" accept=".xls,.xlsx,.csv" style="position:fixed;left:-9999px;top:-9999px;opacity:0;width:1px;height:1px;">
   <span id="file-name">未选择文件</span>
   <div class="spacer"></div>
-  <button class="btn btn-accent"    id="export-excel-btn" disabled>📊 导出Excel(.xlsx)</button>
-  <button class="btn btn-export"    id="export-btn"    disabled>⬇ 导出切片</button>
-  <button class="btn btn-danger"    id="clear-btn"     disabled>✕ 清空</button>
+  <button class="btn btn-accent" id="export-excel-btn" disabled>
+    <svg class="icon-inline" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 3v12"></path>
+      <path d="M8 11l4 4 4-4"></path>
+      <path d="M5 20h14"></path>
+      <rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect>
+    </svg>
+    导出Excel(.xlsx)
+  </button>
+  <button class="btn btn-export" id="export-btn" disabled>
+    <svg class="icon-inline" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"></path>
+      <path d="M12 10v6"></path>
+      <path d="M9.5 13.5 12 16l2.5-2.5"></path>
+    </svg>
+    导出切片
+  </button>
+  <button class="btn btn-danger" id="clear-btn" disabled>
+    <svg class="icon-inline" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 7h16"></path>
+      <path d="M10 11v6"></path>
+      <path d="M14 11v6"></path>
+      <path d="M6 7l1 12h10l1-12"></path>
+      <path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path>
+    </svg>
+    清空
+  </button>
 </header>
 
 <!-- 警告横幅 -->
@@ -547,11 +898,28 @@
 <!-- 下半：标记列表 + 切片预览 -->
 <div id="bottom-area">
   <div id="marker-section">
-    <h2>标记点列表</h2>
+    <h2>
+      <svg class="icon-inline" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 6h11"></path>
+        <path d="M9 12h11"></path>
+        <path d="M9 18h11"></path>
+        <path d="M4 6h.01"></path>
+        <path d="M4 12h.01"></path>
+        <path d="M4 18h.01"></path>
+      </svg>
+      标记点列表
+    </h2>
     <div id="marker-list"></div>
   </div>
   <div id="segment-section">
-    <h2>切片列表（点击试听）</h2>
+    <h2>
+      <svg class="icon-inline" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="4" width="18" height="4" rx="1"></rect>
+        <rect x="3" y="10" width="18" height="4" rx="1"></rect>
+        <rect x="3" y="16" width="18" height="4" rx="1"></rect>
+      </svg>
+      切片列表（点击试听）
+    </h2>
     <div id="segment-list"></div>
   </div>
 </div>

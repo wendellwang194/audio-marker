@@ -222,13 +222,18 @@
 
   /* ══ 警告横幅（新增）══ */
   #warning-banner {
-    display: none; margin: 8px 24px 0;
-    background: #3d2000; border: 1px solid #f59e0b;
-    border-radius: 8px; padding: 10px 16px;
-    font-size: 13px; color: #fcd34d; line-height: 1.6;
+    display: none;
+    margin: 4px 16px 10px;
+    background: #3d2000;
+    border: 1px solid #f59e0b;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 11px;
+    color: #fcd34d;
+    line-height: 1.45;
   }
   #warning-banner.active { display: block; }
-  #warning-banner ul { margin: 4px 0 0 18px; }
+  #warning-banner ul { margin: 3px 0 0 16px; }
 
   /* ── 主体分栏 ── */
   #bottom-area {
@@ -1100,9 +1105,11 @@
   }
 
   #warning-banner {
-    margin: 6px 16px 0;
-    padding: 8px 12px;
-    font-size: 12px;
+    margin: 4px 16px 10px;
+    padding: 6px 10px;
+    font-size: 11px;
+    max-height: 110px;
+    overflow-y: auto;
   }
 
   #bottom-area {
@@ -1277,10 +1284,16 @@
     </svg>
     清空
   </button>
+  <button class="btn" id="close-audio-btn" disabled title="关闭当前音频并清空标记与切片">
+    <svg class="icon-inline" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="9"></circle>
+      <path d="M9 9l6 6"></path>
+      <path d="M15 9l-6 6"></path>
+    </svg>
+    关闭音频
+  </button>
 </header>
 
-<!-- 警告横幅 -->
-<div id="warning-banner"></div>
 <!-- ══ 操作栏：播放 + 开始标记 + 结束标记（紧邻波形）══ -->
 <div id="action-bar">
   <button class="ab-play" id="play-btn" disabled>
@@ -1369,6 +1382,9 @@
   </div>
 </div>
 
+<!-- 警告横幅（放在页面底部，减少占用） -->
+<div id="warning-banner"></div>
+
 <!-- 加载遮罩 -->
 <div id="loading">
   <div class="spinner"></div>
@@ -1429,6 +1445,7 @@ const addStartBtn   = document.getElementById('add-start-btn');
 const addEndBtn     = document.getElementById('add-end-btn');
 const exportBtn     = document.getElementById('export-btn');
 const clearBtn         = document.getElementById('clear-btn');
+const closeAudioBtn    = document.getElementById('close-audio-btn');
 const exportExcelBtn   = document.getElementById('export-excel-btn');
 const excelInput        = document.getElementById('excel-input');
 const markerListEl     = document.getElementById('marker-list');
@@ -1464,6 +1481,9 @@ fileInput.addEventListener('change', async e => {
   loadingText.textContent = '正在解码音频...';
   loadingEl.classList.add('active');
   try {
+    if (audioCtx && audioCtx.state !== 'closed') {
+      try { await audioCtx.close(); } catch (_) {}
+    }
     audioCtx    = new (window.AudioContext || window.webkitAudioContext)();
     const ab    = await file.arrayBuffer();
     audioBuffer = await audioCtx.decodeAudioData(ab);
@@ -1494,6 +1514,12 @@ fileInput.addEventListener('change', async e => {
   }
 });
 
+closeAudioBtn.addEventListener('click', async () => {
+  if (!audioBuffer) return;
+  if (!confirm('关闭当前音频后，将清空标记和切片，是否继续？')) return;
+  await closeCurrentAudio();
+});
+
 // ══════════════════════════════════════════════
 //  配对计算 & 校验
 // ══════════════════════════════════════════════
@@ -1521,9 +1547,7 @@ function computePairsAndValidate() {
       }
     }
   }
-  if (pendingStart !== null) {
-    warnings.push(`${fmtTime(pendingStart.time)} 处有开始标记，但没有对应的结束标记`);
-  }
+  // 末尾只有一个“待完成”的开始标记通常只是正在继续打点，不视为错误
 
   validPairs = pairs;
 
@@ -1943,7 +1967,59 @@ function pause() {
 
 function stopPlayback() {
   if (sourceNode) { try { sourceNode.stop(); } catch(e){} }
+  sourceNode = null;
   isPlaying = false; startOffset = 0; setPlayIcon(false); cancelAnimationFrame(animFrame); updatePlayhead(0);
+}
+
+async function closeCurrentAudio() {
+  if (segPlayState) stopSegPlay(false);
+  stopPlayback();
+
+  if (audioCtx && audioCtx.state !== 'closed') {
+    try { await audioCtx.close(); } catch (_) {}
+  }
+
+  audioCtx = null;
+  audioBuffer = null;
+  channelData = null;
+  duration = 0;
+  startTime = 0;
+  startOffset = 0;
+  zoomLevel = 1;
+  viewStart = 0;
+  markers = [];
+  validPairs = [];
+  segPlayState = null;
+  sourceAudioMime = '';
+  sourceAudioExt = 'wav';
+
+  fileInput.value = '';
+  excelInput.value = '';
+  fileNameEl.textContent = '未选择文件';
+
+  zoomSlider.value = 1;
+  zoomDisplay.textContent = '1×';
+  rateDisplay.textContent = parseFloat(rateSlider.value).toFixed(2) + '×';
+  timeDisplay.textContent = '00:00.0 / 00:00.0';
+  progressLeft.textContent = '00:00.0';
+  progressRight.textContent = '00:00.0';
+  progressFill.style.width = '0%';
+  progressThumb.style.left = '0%';
+  timecodeInput.value = '';
+  timecodeInput.placeholder = '00:00.0';
+  warningBanner.classList.remove('active');
+  warningBanner.innerHTML = '';
+  emptyHint.style.display = 'block';
+
+  document.querySelectorAll('.marker-line, .seg-region').forEach(el => el.remove());
+  const dpr = window.devicePixelRatio || 1;
+  wCtx.clearRect(0, 0, waveCanvas.width / dpr, CANVAS_H);
+  tCtx.clearRect(0, 0, tlCanvas.width / dpr, 28);
+  playheadEl.style.left = '0px';
+
+  updateScrollThumb();
+  renderAll();
+  updateUI(false);
 }
 
 function getCurrentTime() {
@@ -2127,7 +2203,7 @@ function renderMarkerList() {
       else pStart = null;
     }
   }
-  if (pStart !== null) errorSet.add(pStart.origIdx);
+  // 末尾待完成的开始标记不标记为错误（避免“刚打开始点就报错”）
 
   sorted.forEach(m => {
     const i    = m.origIdx;
@@ -3119,6 +3195,7 @@ function updateUI(hasAudio) {
   playBtn.disabled    = !hasAudio;
   addStartBtn.disabled = !hasAudio;
   addEndBtn.disabled   = !hasAudio;
+  closeAudioBtn.disabled = !hasAudio;
 }
 
 // ══════════════════════════════════════════════
